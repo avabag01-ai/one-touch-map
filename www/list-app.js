@@ -80,8 +80,8 @@ function renderList() {
         item.className = 'delivery-item';
         if (delivery.priority === 'urgent') item.classList.add('urgent');
 
-        // 용량 표시
-        const tonnageStr = delivery.tonnage ? `<span class="tonnage-badge">${delivery.tonnage}t</span>` : '';
+        // 용량 표시 제거
+        const tonnageStr = '';
 
         // 주소 표시 (구주소/신주소)
         const addressDisplay = delivery.addressAfter
@@ -464,7 +464,6 @@ function openInfoModal(id) {
 
     // 기존 정보 표시
     document.getElementById('modalPhone').value = delivery.phone || '';
-    document.getElementById('modalTonnage').value = delivery.tonnage || '';
     document.getElementById('modalMemo').value = delivery.memo || '';
 
     document.getElementById('infoModal').style.display = 'flex';
@@ -477,13 +476,6 @@ document.addEventListener('DOMContentLoaded', () => {
         currentEditingId = null;
     });
 
-    // 톤수 버튼 클릭
-    document.querySelectorAll('.tonnage-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.getElementById('modalTonnage').value = btn.dataset.value;
-        });
-    });
-
     // 저장 버튼
     document.getElementById('saveInfoBtn').addEventListener('click', () => {
         if (!currentEditingId) return;
@@ -493,7 +485,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 정보 저장
         delivery.phone = document.getElementById('modalPhone').value.trim();
-        delivery.tonnage = document.getElementById('modalTonnage').value.trim();
         delivery.memo = document.getElementById('modalMemo').value.trim();
 
         localStorage.setItem('deliveries', JSON.stringify(deliveries));

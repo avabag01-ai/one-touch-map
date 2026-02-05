@@ -178,19 +178,23 @@
 
         /* 레이어별 색상 - 지금갈곳만 선명하게 */
         .custom-marker.layer-1 {
-            background: rgba(33, 150, 243, 0.9); /* 지금갈곳: 파랑 - 선명 */
+            background: rgba(33, 150, 243, 0.95); /* 지금갈곳: 파랑 - 선명 */
+            opacity: 1;
         }
 
         .custom-marker.layer-2 {
-            background: rgba(255, 152, 0, 0.4); /* 나중에갈곳: 주황 - 투명 */
+            background: rgba(255, 152, 0, 0.7); /* 나중에갈곳: 주황 */
+            opacity: 0.6;
         }
 
         .custom-marker.layer-3 {
-            background: rgba(144, 238, 144, 0.4); /* 전체: 연두 - 투명 */
+            background: rgba(144, 238, 144, 0.7); /* 전체: 연두 */
+            opacity: 0.6;
         }
 
         .custom-marker.layer-0 {
-            background: rgba(128, 128, 128, 0.4); /* 미지정: 회색 - 투명 */
+            background: rgba(128, 128, 128, 0.7); /* 미지정: 회색 */
+            opacity: 0.6;
         }
 
         /* 현재 위치 버튼 */
@@ -491,11 +495,10 @@
                     const roadAddr = delivery.roadAddress || delivery.addressAfter || '';
 
                     // OCR 정보가 있으면 한 번에 표시
-                    const hasInfo = delivery.phone || delivery.tonnage || delivery.memo;
+                    const hasInfo = delivery.phone || delivery.memo;
                     const infoSection = hasInfo
                         ? `<div style="background:#E3F2FD; padding:8px; border-radius:6px; margin-bottom:10px; border-left:3px solid #2196F3;">
                             ${delivery.phone ? `<div style="margin-bottom:4px;"><a href="tel:${delivery.phone}" style="color:#1976D2; text-decoration:none; font-size:13px; font-weight:bold;">📞 ${delivery.phone}</a></div>` : ''}
-                            ${delivery.tonnage ? `<div style="margin-bottom:4px;"><span style="background:#FF7043; color:white; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:bold;">${delivery.tonnage}톤</span></div>` : ''}
                             ${delivery.memo ? `<div style="margin-top:6px; padding-top:6px; border-top:1px solid #BBDEFB;"><div style="font-size:11px; color:#1976D2; font-weight:bold; margin-bottom:2px;">📝 메모</div><div style="font-size:13px; color:#333;">${delivery.memo}</div></div>` : ''}
                            </div>`
                         : '';
@@ -600,7 +603,10 @@
         let watchId = null;
         let isTrackingEnabled = false;
         let userLocationMarker = null;
-        let mapMode = 'addresses'; // 'addresses' 또는 'gps'
+
+        // URL 파라미터로 초기 모드 설정
+        const urlParams = new URLSearchParams(window.location.search);
+        let mapMode = urlParams.get('mode') === 'gps' ? 'gps' : 'addresses';
 
         // GPS 추적 시작 (Leaflet 마커 사용)
         function startLocationTracking() {
@@ -706,6 +712,12 @@
 
         // 페이지 로드 시 자동으로 위치 추적 시작
         startLocationTracking();
+
+        // GPS 모드로 시작하는 경우 버튼 상태 업데이트
+        if (mapMode === 'gps') {
+            document.getElementById('locationBtn').textContent = '🗺️';
+            document.getElementById('locationBtn').style.background = '#4CAF50';
+        }
 
         // 위치 버튼 클릭: 지도 모드 전환
         document.getElementById('locationBtn').addEventListener('click', toggleMapMode);

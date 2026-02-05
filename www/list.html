@@ -26,6 +26,9 @@
         <button class="action-btn" onclick="location.href='map.html'">
             지도
         </button>
+        <button class="action-btn" onclick="location.href='map.html?mode=gps'">
+            지도(내위치)
+        </button>
         <button class="action-btn" id="deleteBtn">
             삭제
         </button>
@@ -81,22 +84,6 @@
                 <input type="tel" id="modalPhone" placeholder="010-1234-5678" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
             </div>
 
-            <div style="margin-bottom: 12px;">
-                <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">🚚 톤수</label>
-                <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-bottom: 6px;">
-                    <button class="tonnage-btn" data-value="0.5">0.5t</button>
-                    <button class="tonnage-btn" data-value="1">1t</button>
-                    <button class="tonnage-btn" data-value="1.5">1.5t</button>
-                    <button class="tonnage-btn" data-value="2">2t</button>
-                    <button class="tonnage-btn" data-value="2.5">2.5t</button>
-                    <button class="tonnage-btn" data-value="3">3t</button>
-                    <button class="tonnage-btn" data-value="3.5">3.5t</button>
-                    <button class="tonnage-btn" data-value="4">4t</button>
-                    <button class="tonnage-btn" data-value="4.5">4.5t</button>
-                    <button class="tonnage-btn" data-value="5">5t</button>
-                </div>
-                <input type="number" id="modalTonnage" placeholder="직접 입력" step="0.5" min="0" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-            </div>
 
             <div style="margin-bottom: 15px;">
                 <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">📝 메모</label>
