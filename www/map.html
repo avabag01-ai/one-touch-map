@@ -216,21 +216,6 @@
             background: #F0F0F0;
         }
 
-        /* 중앙 고정 GPS 마커 (지도가 움직이는 방식) */
-        .center-marker {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 1000;
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            background: #FF0000;
-            border: 3px solid #FFFFFF;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-            pointer-events: none;
-        }
     </style>
 </head>
 
@@ -253,9 +238,6 @@
 
     <!-- 지도 - 전체화면 -->
     <div id="map" style="position: absolute; top: 0; bottom: 0; width: 100%; height: 100vh;"></div>
-
-    <!-- 중앙 고정 GPS 마커 -->
-    <div class="center-marker" id="centerMarker" style="display: none;"></div>
 
     <!-- 현재 위치 버튼 -->
     <button class="location-btn" id="locationBtn">📍</button>
@@ -617,8 +599,10 @@
 
         let watchId = null;
         let isTrackingEnabled = false;
+        let userLocationMarker = null;
+        let mapMode = 'addresses'; // 'addresses' 또는 'gps'
 
-        // 자동 위치 추적 시작 (지도 중심 고정 방식)
+        // GPS 추적 시작 (Leaflet 마커 사용)
         function startLocationTracking() {
             if (!navigator.geolocation) {
                 alert('이 기기는 GPS를 지원하지 않습니다.');
@@ -626,16 +610,30 @@
             }
 
             isTrackingEnabled = true;
-            document.getElementById('centerMarker').style.display = 'block';
-            document.getElementById('locationBtn').style.background = '#4CAF50'; // 추적 중 표시
 
             watchId = navigator.geolocation.watchPosition(
                 (pos) => {
                     const lat = pos.coords.latitude;
                     const lng = pos.coords.longitude;
 
-                    // 지도 중심을 현재 위치로 즉시 이동 (마커는 화면 중앙 고정)
-                    if (isTrackingEnabled) {
+                    // Leaflet 마커로 GPS 위치 표시 (지도 레이어에 고정)
+                    if (userLocationMarker) {
+                        userLocationMarker.setLatLng([lat, lng]);
+                    } else {
+                        userLocationMarker = L.circleMarker([lat, lng], {
+                            radius: 8,
+                            fillColor: '#FF0000',
+                            color: '#FFFFFF',
+                            weight: 3,
+                            opacity: 1,
+                            fillOpacity: 1,
+                            interactive: false,
+                            pane: 'markerPane'
+                        }).addTo(map);
+                    }
+
+                    // GPS 모드일 때만 지도 중심을 내 위치로 이동
+                    if (isTrackingEnabled && mapMode === 'gps') {
                         map.setView([lat, lng], map.getZoom(), { animate: false });
                     }
 
@@ -643,7 +641,6 @@
                 },
                 (error) => {
                     console.error('위치 추적 오류:', error);
-                    // 첫 오류만 알림 (반복 알림 방지)
                     if (!window.gpsErrorShown) {
                         window.gpsErrorShown = true;
                         let errorMsg = '위치를 가져올 수 없습니다.\n';
@@ -678,58 +675,40 @@
                 watchId = null;
             }
             isTrackingEnabled = false;
-            document.getElementById('centerMarker').style.display = 'none';
-            document.getElementById('locationBtn').style.background = 'white';
+            if (userLocationMarker) {
+                map.removeLayer(userLocationMarker);
+                userLocationMarker = null;
+            }
+        }
+
+        // 지도 모드 전환
+        function toggleMapMode() {
+            if (mapMode === 'addresses') {
+                mapMode = 'gps';
+                document.getElementById('locationBtn').textContent = '🗺️';
+                document.getElementById('locationBtn').style.background = '#4CAF50';
+                // GPS 위치로 이동
+                if (userLocationMarker) {
+                    const latlng = userLocationMarker.getLatLng();
+                    map.setView(latlng, 18);
+                }
+            } else {
+                mapMode = 'addresses';
+                document.getElementById('locationBtn').textContent = '📍';
+                document.getElementById('locationBtn').style.background = 'white';
+                // 주소 마커들로 이동
+                if (markers.length > 0) {
+                    const group = L.featureGroup(markers);
+                    map.fitBounds(group.getBounds().pad(0.3), { maxZoom: 18 });
+                }
+            }
         }
 
         // 페이지 로드 시 자동으로 위치 추적 시작
         startLocationTracking();
 
-        document.getElementById('locationBtn').addEventListener('click', () => {
-            if (navigator.geolocation) {
-                // 위치 요청 중 표시
-                const btn = document.getElementById('locationBtn');
-                btn.textContent = '⏳';
-
-                navigator.geolocation.getCurrentPosition(
-                    (pos) => {
-                        const lat = pos.coords.latitude;
-                        const lng = pos.coords.longitude;
-                        map.setView([lat, lng], 18);
-
-                        // 기존 마커 제거
-                        if (userLocationMarker) {
-                            map.removeLayer(userLocationMarker);
-                        }
-
-                        // 빨간 점으로 현재 위치 표시
-                        userLocationMarker = L.circleMarker([lat, lng], {
-                            radius: 8,
-                            fillColor: '#FF0000',
-                            color: '#FFFFFF',
-                            weight: 3,
-                            opacity: 1,
-                            fillOpacity: 1
-                        }).addTo(map);
-
-                        btn.textContent = '📍';
-                        console.log('현재 위치:', lat, lng);
-                    },
-                    (error) => {
-                        btn.textContent = '📍';
-                        console.error('위치 오류:', error);
-                        alert('위치를 가져올 수 없습니다.\nGPS를 켜주세요.\n\n오류: ' + error.message);
-                    },
-                    {
-                        enableHighAccuracy: true,
-                        timeout: 10000,
-                        maximumAge: 0
-                    }
-                );
-            } else {
-                alert('이 기기는 위치 서비스를 지원하지 않습니다.');
-            }
-        });
+        // 위치 버튼 클릭: 지도 모드 전환
+        document.getElementById('locationBtn').addEventListener('click', toggleMapMode);
 
         document.addEventListener('DOMContentLoaded', () => {
             initMap(); // 초기화하면서 layer도 설정됨
