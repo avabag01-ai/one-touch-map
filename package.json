@@ -1,0 +1,26 @@
+{
+    "name": "delivery-map",
+    "version": "1.0.0",
+    "description": "배송지도 - OCR 주소 인식 및 최적 경로 앱",
+    "main": "index.html",
+    "scripts": {
+        "build": "echo 'No build needed'",
+        "android": "npx cap open android"
+    },
+    "keywords": [
+        "delivery",
+        "map",
+        "ocr",
+        "route-optimization"
+    ],
+    "author": "사장님",
+    "license": "MIT",
+    "dependencies": {
+        "@capacitor/android": "^6.2.0",
+        "@capacitor/core": "^6.2.0"
+    },
+    "devDependencies": {
+        "@capacitor/cli": "^6.2.0",
+        "sharp": "^0.34.5"
+    }
+}

@@ -1,0 +1,346 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #F0F2F5;
+    color: #1a1a1a;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* 헤더 */
+.header {
+    background: linear-gradient(135deg, #3F51B5, #5C6BC0);
+    color: white;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.back-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 4px 8px;
+}
+
+.header-title {
+    flex: 1;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.menu-btn {
+    border: none;
+    cursor: pointer;
+    font-weight: 700;
+}
+
+/* 상단 버튼 그리드 */
+.action-buttons {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 4px;
+    padding: 6px 6px 2px;
+    background: #F0F2F5;
+}
+
+.action-btn {
+    background: white;
+    border: 1px solid #E0E0E0;
+    border-radius: 8px;
+    padding: 6px 2px;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    line-height: 1.3;
+    color: #333;
+}
+
+.action-btn:active {
+    background: #E8EAF6;
+}
+
+.full-width-btn {
+    padding: 2px 6px 4px;
+    background: #F0F2F5;
+}
+
+.action-btn-full {
+    width: 100%;
+    background: white;
+    border: 1px solid #E0E0E0;
+    border-radius: 8px;
+    padding: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    color: #333;
+}
+
+/* 레이어 버튼 */
+.layer-buttons {
+    display: flex;
+    gap: 4px;
+    padding: 4px 6px;
+    background: #F0F2F5;
+    overflow-x: auto;
+}
+
+.layer-btn {
+    flex: 1;
+    min-width: 0;
+    background: #E8EAF6;
+    border: none;
+    border-radius: 14px;
+    padding: 6px 4px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    color: #3F51B5;
+    white-space: nowrap;
+}
+
+.layer-btn.clear {
+    background: #FFEBEE;
+    color: #E53935;
+}
+
+.layer-btn:active {
+    opacity: 0.7;
+}
+
+/* 리스트 헤더 */
+.list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 10px;
+    background: white;
+    border-bottom: 1px solid #E0E0E0;
+    margin-top: 4px;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #555;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: #3F51B5;
+}
+
+.date-container {
+    font-size: 13px;
+}
+
+/* 배송 아이템 - 애플 스타일 명암 구분 */
+.delivery-item {
+    background: white;
+    padding: 6px 8px;
+    margin-bottom: 0;
+    border: none;
+}
+
+.delivery-item:nth-child(even) {
+    background: #F9F9F9;
+}
+
+.delivery-item.urgent {
+    border-left: 2px solid #FF3B30;
+}
+
+.item-row-top {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.item-checkbox {
+    width: 14px;
+    height: 14px;
+    accent-color: #007AFF;
+    flex-shrink: 0;
+    border-radius: 50%;
+}
+
+.index-text {
+    font-size: 13px;
+    font-weight: 600;
+    color: #007AFF;
+    min-width: 16px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.index-text.urgent {
+    color: #FF3B30;
+}
+
+.delivery-info {
+    flex: 1;
+    cursor: pointer;
+    min-width: 0;
+}
+
+.addr-text {
+    font-size: 13px;
+    color: #1C1C1E;
+    line-height: 1.3;
+    word-break: break-word;
+}
+
+.tonnage-badge {
+    background: #FF7043;
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 10px;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.icon-btn {
+    background: none;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 2px;
+    flex-shrink: 0;
+}
+
+/* 하단 줄: 전화번호 + 메모 */
+.item-row-bottom {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+    padding-left: 44px; /* 체크박스+순번 너비만큼 들여쓰기 */
+    align-items: center;
+}
+
+.phone-area {
+    flex-shrink: 0;
+}
+
+.phone-link {
+    font-size: 12px;
+    color: #2196F3;
+    text-decoration: none;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.phone-link:active {
+    color: #1565C0;
+}
+
+.memo-area {
+    flex: 1;
+    cursor: pointer;
+    min-width: 0;
+    padding: 3px 6px;
+    border-radius: 6px;
+    background: #F5F7FA;
+    border: 1px dashed #D0D0D0;
+}
+
+.memo-area:active {
+    background: #E8EAF6;
+}
+
+.memo-text {
+    font-size: 12px;
+    color: #333;
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.memo-placeholder {
+    font-size: 12px;
+    color: #999;
+}
+
+/* 인라인 입력 */
+.inline-input {
+    border: 1px solid #E0E0E0;
+    border-radius: 6px;
+    padding: 3px 6px;
+    font-size: 12px;
+    outline: none;
+    background: #F9FAFB;
+}
+
+.tel-input {
+    width: 110px;
+}
+
+.inline-input:focus {
+    border-color: #3F51B5;
+    background: white;
+}
+
+/* 빈 상태 */
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.empty-state-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+}
+
+.empty-state-text {
+    font-size: 14px;
+    color: #999;
+}
+
+/* 토스트 */
+.toast {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.8);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 13px;
+    z-index: 9999;
+    display: none;
+}
+
+/* 톤수 버튼 */
+.tonnage-btn {
+    padding: 6px;
+    background: #F5F5F5;
+    border: 1px solid #DDD;
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+    color: #333;
+}
+
+.tonnage-btn:active {
+    background: #2196F3;
+    color: white;
+}

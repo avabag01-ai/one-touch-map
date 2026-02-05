@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>원터치맵</title>
+    <!-- PWA 설정 -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <meta name="theme-color" content="#F9F9F9">
+
+    <link rel="stylesheet" href="main-style.css">
+    <script>
+        // 테마 즉시 적용 (깜빡임 방지)
+        (function () { var t = localStorage.getItem('appTheme'); if (t) document.documentElement.setAttribute('data-theme', t); })();
+    </script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- OCR 라이브러리 (Tesseract.js) -->
+    <script src='https://unpkg.com/tesseract.js@v2.1.0/dist/tesseract.min.js'></script>
+    <!-- 스타일 강제 적용 (캐시 무시) -->
+    <style>
+        /* 인라인 오버라이드 제거 - main-style.css에서 관리 */
+    </style>
+</head>
+
+<body>
+    <!-- 헤더 -->
+    <div class="header">
+        <div class="header-title">원터치맵</div>
+        <div class="dev-info">만든이 : 김영일</div>
+    </div>
+
+    <!-- 스캔 버튼 및 파일 입력 (숨김) -->
+    <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display: none;">
+    <input type="file" id="fileInput" accept="image/*" style="display: none;">
+
+    <div style="padding: 0;">
+        <!-- 주소 입력 및 결과 표시 영역 -->
+        <div class="input-area">
+            <div class="input-group">
+                <span class="input-label">주소전</span>
+                <input type="text" id="addressBefore" class="address-input" placeholder="구주소 또는 신주소 입력">
+            </div>
+            <div class="input-group">
+                <span class="input-label">주소후</span>
+                <input type="text" id="addressAfter" class="address-input" placeholder="변환 결과" readonly>
+            </div>
+        </div>
+
+        <!-- 키패드 -->
+        <div class="keypad-wrap">
+            <!-- 왼쪽: 숫자 + 특수키 (4x4) -->
+            <div class="keypad-main">
+                <button class="key-num" data-value="1">1</button>
+                <button class="key-num" data-value="2">2</button>
+                <button class="key-num" data-value="3">3</button>
+                <button class="key-special" data-value="←">←</button>
+
+                <button class="key-num" data-value="4">4</button>
+                <button class="key-num" data-value="5">5</button>
+                <button class="key-num" data-value="6">6</button>
+                <button class="key-special" data-value="로">로</button>
+
+                <button class="key-num" data-value="7">7</button>
+                <button class="key-num" data-value="8">8</button>
+                <button class="key-num" data-value="9">9</button>
+                <button class="key-special" data-value="길">길</button>
+
+                <button class="key-special" data-value="-">-</button>
+                <button class="key-num" data-value="0">0</button>
+                <button class="key-special" data-value=" ">␣</button>
+                <button class="key-special" data-value="안길">안길</button>
+            </div>
+            <!-- 오른쪽: 기능키 (세로 배치) -->
+            <div class="keypad-side">
+                <button class="key-action big-btn" id="registerBtn">배송등록</button>
+                <button class="key-action big-btn" id="listBtn" onclick="location.href='list.html'">배송주소</button>
+                <div class="road-grid">
+                    <button class="key-road"
+                        onclick="addressBefore += '가길'; currentField='before'; updateDisplay();">가길</button>
+                    <button class="key-road"
+                        onclick="addressBefore += '나길'; currentField='before'; updateDisplay();">나길</button>
+                    <button class="key-road"
+                        onclick="addressBefore += '다길'; currentField='before'; updateDisplay();">다길</button>
+                    <button class="key-road"
+                        onclick="addressBefore += '라길'; currentField='before'; updateDisplay();">라길</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 라디오 버튼 (동 선택) -->
+        <div class="dong-selector">
+            <label class="dong-check">
+                <input type="checkbox" id="urgentMode">
+                <span class="urgent-label">긴급</span>
+            </label>
+            <div id="dongRadios" style="display: flex; gap: 8px; overflow-x: auto;">
+                <!-- 동적으로 생성됨 -->
+            </div>
+        </div>
+
+        <!-- 액션 버튼 바 (동 선택바 아래) -->
+        <div class="action-bar">
+            <button class="action-btn btn-find">찾기</button>
+            <button class="action-btn btn-map" onclick="location.href='map.html'">지도</button>
+            <button class="action-btn btn-camera" id="fileBtn">촬영</button>
+            <button class="action-btn btn-setting" onclick="location.href='settings.html'">설정</button>
+        </div>
+
+        <!-- 빠른 선택 (도로명) -->
+        <div class="quick-select" id="quickSelect">
+            <!-- 동적으로 생성됨 -->
+        </div>
+
+        <div class="toast" id="messageBox"></div>
+
+        <!-- 스캔 결과 확인 모달 -->
+        <div id="ocrModal" class="modal-overlay" style="display: none;">
+            <div class="modal-content">
+                <h3>📝 스캔 결과 확인</h3>
+                <p class="modal-desc">인식된 주소를 수정하거나 추가하세요.</p>
+
+                <div id="scannedList" class="scanned-list">
+                    <!-- 동적으로 아이템 추가됨 -->
+                </div>
+
+                <button id="addManualBtn" class="btn-add-manual">+ 직접 추가하기</button>
+
+                <div class="modal-actions">
+                    <button id="cancelScanBtn" class="btn-cancel">취소</button>
+                    <button id="confirmScanBtn" class="btn-confirm">일괄 등록</button>
+                </div>
+            </div>
+        </div>
+
+        <script src="anchor-system.js"></script>
+        <script src="ocr-app.js"></script>
+        <script src="main-app.js"></script>
+</body>
+
+</html>

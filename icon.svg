@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- 배경: 둥근 사각형 -->
+  <rect width="512" height="512" rx="100" fill="#3F51B5"/>
+
+  <!-- 바닥 지도 모양 (접힌 지도) -->
+  <g transform="translate(56, 200)">
+    <!-- 지도 베이스 -->
+    <path d="M0,180 L0,40 L133,0 L266,40 L400,0 L400,180 L266,140 L133,180 L0,180Z" fill="#E8EAF6" opacity="0.9"/>
+    <!-- 지도 접힌 선 -->
+    <line x1="133" y1="0" x2="133" y2="180" stroke="#9FA8DA" stroke-width="2" opacity="0.6"/>
+    <line x1="266" y1="0" x2="266" y2="180" stroke="#9FA8DA" stroke-width="2" opacity="0.6"/>
+    <!-- 지도 위 도로 표시 -->
+    <line x1="30" y1="90" x2="170" y2="70" stroke="#BDBDBD" stroke-width="4" stroke-linecap="round"/>
+    <line x1="170" y1="70" x2="370" y2="100" stroke="#BDBDBD" stroke-width="4" stroke-linecap="round"/>
+    <line x1="80" y1="130" x2="320" y2="150" stroke="#BDBDBD" stroke-width="3" stroke-linecap="round"/>
+  </g>
+
+  <!-- 신주소 번호판 (메인 포인트) -->
+  <g transform="translate(126, 60)">
+    <!-- 번호판 배경 (둥근 사각형) -->
+    <rect width="260" height="160" rx="20" fill="#FFFFFF" stroke="#1565C0" stroke-width="6"/>
+    <!-- "신주소" 텍스트 -->
+    <text x="130" y="55" text-anchor="middle" font-family="Arial, sans-serif" font-size="36" font-weight="bold" fill="#1565C0">신주소</text>
+    <!-- 구분선 -->
+    <line x1="20" y1="72" x2="240" y2="72" stroke="#1565C0" stroke-width="2" opacity="0.4"/>
+    <!-- 번호 -->
+    <text x="130" y="130" text-anchor="middle" font-family="Arial, sans-serif" font-size="64" font-weight="900" fill="#1565C0">288</text>
+  </g>
+
+  <!-- 위치 핀 마커 (번호판 아래) -->
+  <g transform="translate(230, 230)">
+    <path d="M26,0 C40,0 52,12 52,26 C52,46 26,65 26,65 C26,65 0,46 0,26 C0,12 12,0 26,0Z" fill="#F44336"/>
+    <circle cx="26" cy="24" r="10" fill="white"/>
+  </g>
+</svg>

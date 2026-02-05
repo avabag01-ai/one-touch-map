@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>배송 리스트</title>
+    <link rel="stylesheet" href="list-style.css">
+    <link rel="stylesheet" href="main-style.css">
+    <script src="android-back.js"></script>
+    <script>(function () { var t = localStorage.getItem('appTheme'); if (t) document.documentElement.setAttribute('data-theme', t); })();</script>
+</head>
+
+<body>
+    <!-- 헤더 -->
+    <div class="header">
+        <button class="back-btn" onclick="location.replace('index.html')">←</button>
+        <span class="header-title">배송 목록 (<span id="totalCount">0</span>)</span>
+        <button class="menu-btn"
+            style="font-size: 14px; background: #FFC107; padding: 6px 10px; border-radius: 4px; color: #000;"
+            id="optimizeBtn">🚀최적경로</button>
+    </div>
+
+    <!-- 상단 버튼들 -->
+    <div class="action-buttons">
+        <button class="action-btn" onclick="location.href='map.html'">
+            지도
+        </button>
+        <button class="action-btn" id="deleteBtn">
+            삭제
+        </button>
+        <button class="action-btn" id="urgentBtn">
+            긴급
+        </button>
+        <button class="action-btn" id="carryoverBtn">
+            이월
+        </button>
+    </div>
+
+    <div class="full-width-btn">
+        <button class="action-btn-full">선택한주소 사용자 변경</button>
+    </div>
+
+    <!-- 레이어 저장 버튼 -->
+    <div class="layer-buttons">
+        <button class="layer-btn" data-layer="1">L1</button>
+        <button class="layer-btn" data-layer="2">L2</button>
+        <button class="layer-btn" data-layer="3">L3</button>
+        <button class="layer-btn" data-layer="4">L4</button>
+        <button class="layer-btn" data-layer="5">L5</button>
+        <button class="layer-btn clear" data-layer="0">해제</button>
+    </div>
+
+    <!-- 배송 리스트 -->
+    <div class="delivery-list">
+        <!-- 전체 선택 -->
+        <div class="list-header">
+            <label class="checkbox-label">
+                <input type="checkbox" id="selectAll">
+                <span>전체선택 (<span id="totalCount">0</span>건)</span>
+            </label>
+            <div class="date-container" style="display:flex; align-items:center; gap:5px;">
+                <div class="date" id="currentDate" style="cursor:pointer; color:#3F51B5; font-weight:bold;"></div>
+                <input type="date" id="datePicker" style="display:none;">
+                <span style="font-size:12px; cursor:pointer;"
+                    onclick="document.getElementById('datePicker').showPicker()">📅</span>
+            </div>
+        </div>
+
+        <!-- 배송 목록 -->
+        <div id="deliveryItems">
+            <!-- 동적으로 생성됨 -->
+        </div>
+    </div>
+
+    <!-- 스크립트 -->
+    <script src="route-optimizer.js"></script>
+    <script src="anchor-system.js"></script>
+    <script src="list-app.js"></script>
+</body>
+
+</html>

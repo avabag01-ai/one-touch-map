@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VWorld API 테스트</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1E1E1E;
+            color: #D4D4D4;
+        }
+
+        .test-section {
+            background: #252526;
+            border: 1px solid #3E3E42;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        h2 {
+            color: #4EC9B0;
+            margin-top: 0;
+        }
+
+        input {
+            background: #3C3C3C;
+            border: 1px solid #555;
+            color: #D4D4D4;
+            padding: 10px;
+            border-radius: 4px;
+            width: 300px;
+            font-size: 14px;
+        }
+
+        button {
+            background: #0E639C;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: 10px;
+        }
+
+        button:hover {
+            background: #1177BB;
+        }
+
+        pre {
+            background: #1E1E1E;
+            border: 1px solid #3E3E42;
+            border-radius: 4px;
+            padding: 15px;
+            overflow-x: auto;
+            color: #CE9178;
+            font-size: 12px;
+        }
+
+        .success {
+            color: #4EC9B0;
+        }
+
+        .error {
+            color: #F48771;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🗺️ VWorld API 테스트</h1>
+    <p>API 키: <code>EEB68327-5D04-3BE3-9072-D3ECFCCC26A2</code></p>
+
+    <!-- 테스트 1: 주소 검색 -->
+    <div class="test-section">
+        <h2>1. 주소 검색 (getAddress)</h2>
+        <p>지번 주소를 입력하면 도로명 주소를 반환합니다.</p>
+        <input type="text" id="address1" placeholder="예: 묵동 245-75" value="묵동 245-75">
+        <button onclick="testAddress()">테스트</button>
+        <pre id="result1">결과가 여기 표시됩니다...</pre>
+    </div>
+
+    <!-- 테스트 2: 좌표 변환 -->
+    <div class="test-section">
+        <h2>2. 좌표 변환 (getcoord)</h2>
+        <p>주소를 입력하면 위도/경도 좌표를 반환합니다.</p>
+        <input type="text" id="address2" placeholder="예: 중랑역로 162" value="중랑역로 162">
+        <button onclick="testCoord()">테스트</button>
+        <pre id="result2">결과가 여기 표시됩니다...</pre>
+    </div>
+
+    <!-- 테스트 3: 행정구역 검색 -->
+    <div class="test-section">
+        <h2>3. 행정구역 검색</h2>
+        <p>동 이름을 입력하면 해당 지역의 정보를 반환합니다.</p>
+        <input type="text" id="dong" placeholder="예: 묵동" value="묵동">
+        <button onclick="testDong()">테스트</button>
+        <pre id="result3">결과가 여기 표시됩니다...</pre>
+    </div>
+
+    <script>
+        const API_KEY = 'EEB68327-5D04-3BE3-9072-D3ECFCCC26A2';
+
+        // 테스트 1: 주소 검색
+        async function testAddress() {
+            const address = document.getElementById('address1').value;
+            const result = document.getElementById('result1');
+            result.textContent = '검색 중...';
+
+            try {
+                const url = `http://api.vworld.kr/req/address?service=address&request=getAddress&version=2.0&crs=epsg:4326&address=${encodeURIComponent(address)}&refine=true&simple=false&format=json&type=both&key=${API_KEY}`;
+
+                console.log('요청 URL:', url);
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                result.className = 'success';
+                result.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                result.className = 'error';
+                result.textContent = `오류: ${error.message}`;
+            }
+        }
+
+        // 테스트 2: 좌표 변환
+        async function testCoord() {
+            const address = document.getElementById('address2').value;
+            const result = document.getElementById('result2');
+            result.textContent = '검색 중...';
+
+            try {
+                const url = `http://api.vworld.kr/req/address?service=address&request=getcoord&version=2.0&crs=epsg:4326&address=${encodeURIComponent(address)}&refine=true&simple=false&format=json&type=ROAD&key=${API_KEY}`;
+
+                console.log('요청 URL:', url);
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                result.className = 'success';
+                result.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                result.className = 'error';
+                result.textContent = `오류: ${error.message}`;
+            }
+        }
+
+        // 테스트 3: 행정구역 검색
+        async function testDong() {
+            const dong = document.getElementById('dong').value;
+            const result = document.getElementById('result3');
+            result.textContent = '검색 중...';
+
+            try {
+                const url = `http://api.vworld.kr/req/data?service=data&request=GetFeature&data=LT_C_ADEMD_INFO&key=${API_KEY}&domain=http://localhost:8000&attrFilter=emd_kor_nm:like:${encodeURIComponent(dong)}`;
+
+                console.log('요청 URL:', url);
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                result.className = 'success';
+                result.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                result.className = 'error';
+                result.textContent = `오류: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>지번 원리 주소 정밀 테스트</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        #header {
+            background: #333;
+            color: white;
+            padding: 15px;
+            text-align: center;
+        }
+
+        #container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        #log-panel {
+            width: 350px;
+            background: #f4f4f4;
+            overflow-y: auto;
+            padding: 10px;
+            border-right: 2px solid #ddd;
+            font-size: 13px;
+        }
+
+        #map {
+            flex: 1;
+        }
+
+        .log-item {
+            margin-bottom: 10px;
+            padding: 8px;
+            border-radius: 4px;
+            background: white;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .log-item.success {
+            border-left: 5px solid #4CAF50;
+        }
+
+        .log-item.fail {
+            border-left: 5px solid #F44336;
+        }
+
+        .log-item b {
+            display: block;
+            margin-bottom: 4px;
+            color: #333;
+        }
+
+        .btn-run {
+            background: #FF5252;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 15px;
+        }
+
+        .custom-marker {
+            background: rgba(63, 81, 181, 0.8);
+            /* 투명도 80% */
+            color: white;
+            border-radius: 50%;
+            border: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            font-size: 11px;
+            /* 작게 */
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
+            width: 20px;
+            /* 작게 */
+            height: 20px;
+            /* 작게 */
+        }
+    </style>
+</head>
+
+<body>
+    <div id="header">
+        <h2>지번 원리 주소 정밀 테스트 모듈</h2>
+    </div>
+    <div id="container">
+        <div id="log-panel">
+            <button class="btn-run" onclick="runTest()">실제 데이타 10건 테스트 시작</button>
+            <div id="log-content"> 여기에 테스트 결과가 표시됩니다. </div>
+        </div>
+        <div id="map"></div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="route-optimizer.js"></script>
+    <script>
+        // 사장님이 제공하신 실제 주소 데이타
+        const testData = [
+            "묵동 244-127",
+            "망우동 491-6",
+            "망우동 494-13",
+            "망우동 516-60",
+            "중화동 324-82",
+            "묵동 244-100",
+            "중화동 273-7",
+            "중화동 178-23",
+            "중화동 123-0"
+        ];
+
+        const VWORLD_KEY = 'EEB68327-5D04-3BE3-9072-D3ECFCCC26A2';
+        let map;
+        let markers = [];
+
+        function initMap() {
+            map = L.map('map', { center: [37.6063, 127.0925], zoom: 16 });
+            // 구글 지도 (건물 번호 표시)
+            L.tileLayer('https://mt1.google.com/vt/lyrs=r&x={x}&y={y}&z={z}', {
+                attribution: '© Google',
+                maxZoom: 20
+            }).addTo(map);
+        }
+
+        async function runTest() {
+            // 초기화
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+            document.getElementById('log-content').innerHTML = "테스트 중...";
+            const posTracker = {};
+
+            let resultsHtml = "";
+
+            for (let i = 0; i < testData.length; i++) {
+                const addr = testData[i];
+                const cleanAddr = addr.includes('서울특별시') ? addr : `서울특별시 중랑구 ${addr}`;
+
+                try {
+                    // VWorld 지번 원리 검색 호출
+                    const coords = await RouteOptimizer.fetchVWorldCoord(addr);
+
+                    if (coords) {
+                        const lat = coords.lat;
+                        const lng = coords.lng;
+                        const posKey = `${lat.toFixed(6)},${lng.toFixed(6)}`;
+
+                        // 겹침 체크
+                        let isClumped = "";
+                        if (posTracker[posKey]) {
+                            isClumped = `⚠️ 주의: ${posTracker[posKey]}번 마커와 위치 동일!`;
+                            posTracker[posKey]++;
+                            // 미세 보정 (테스트용)
+                            const offsetLat = lat + (Math.random() - 0.5) * 0.0001;
+                            const offsetLng = lng + (Math.random() - 0.5) * 0.0001;
+                            addMarker(offsetLat, offsetLng, i + 1, addr);
+                        } else {
+                            posTracker[posKey] = i + 1;
+                            addMarker(lat, lng, i + 1, addr);
+                        }
+
+                        resultsHtml += `
+                            <div class="log-item success">
+                                <b>${i + 1}. ${addr}</b>
+                                좌표: ${lat.toFixed(5)}, ${lng.toFixed(5)}<br>
+                                <span style="color:red; font-size:11px;">${isClumped}</span>
+                            </div>
+                        `;
+                    } else {
+                        resultsHtml += `
+                            <div class="log-item fail">
+                                <b>${i + 1}. ${addr}</b>
+                                <span style="color:red;">좌표 찾기 실패</span>
+                            </div>
+                        `;
+                    }
+                } catch (e) {
+                    console.error(e);
+                    resultsHtml += `<div class="log-item fail"><b>${i + 1}. ${addr}</b> 오류 발생</div>`;
+                }
+
+                document.getElementById('log-content').innerHTML = resultsHtml;
+                await new Promise(r => setTimeout(r, 300)); // 순차 진행
+            }
+
+            if (markers.length > 0) {
+                const group = L.featureGroup(markers);
+                map.fitBounds(group.getBounds().pad(0.3));
+            }
+        }
+
+        function addMarker(lat, lng, num, addr) {
+            const icon = L.divIcon({
+                className: '',
+                html: `<div class="custom-marker" style="width:20px; height:20px;">${num}</div>`,
+                iconSize: [20, 20],
+                iconAnchor: [10, 10]
+            });
+            const m = L.marker([lat, lng], { icon: icon }).addTo(map);
+            m.bindPopup(`<b>${num}번</b><br>${addr}`);
+            markers.push(m);
+        }
+
+        window.onload = initMap;
+    </script>
+</body>
+
+</html>

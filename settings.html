@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>배송지도 01 - 설정</title>
+    <link rel="stylesheet" href="settings-style.css">
+    <link rel="stylesheet" href="main-style.css">
+    <script src="android-back.js"></script>
+    <script>
+        (function () { var t = localStorage.getItem('appTheme'); if (t) document.documentElement.setAttribute('data-theme', t); })();
+    </script>
+</head>
+
+<body>
+    <!-- 헤더 -->
+    <div class="header">
+        <div class="header-title">기본사항설정등록 ( <span id="deliveryCount">0</span>/720 )</div>
+    </div>
+
+    <!-- 메인 탭 -->
+    <div class="main-tabs">
+        <button class="main-tab active" data-tab="dong" id="saveBtn">저 장</button>
+        <button class="main-tab" data-tab="area">구역등록</button>
+        <button class="main-tab" data-tab="board">게시판</button>
+    </div>
+
+    <!-- 서브 탭 -->
+    <div class="sub-tabs">
+        <button class="sub-tab active" data-subtab="video1">동영상 1</button>
+        <button class="sub-tab" data-subtab="video2">동영상 2</button>
+        <button class="sub-tab" data-subtab="manual">사용방법</button>
+    </div>
+
+    <!-- 설정 폼 -->
+    <div class="settings-form">
+        <!-- 사용자명 & 비밀번호 -->
+        <div class="form-row">
+            <div class="form-group">
+                <label>사용자명:</label>
+                <input type="text" id="userName" value="도도">
+            </div>
+            <div class="form-group">
+                <label>비밀번호:</label>
+                <input type="password" id="password" value="0000">
+            </div>
+        </div>
+
+        <!-- 지도크기 & 승인번호 -->
+        <div class="form-row">
+            <div class="form-group">
+                <label>지도크기:</label>
+                <input type="number" id="mapSize" value="3">
+            </div>
+            <div class="form-group">
+                <label>승인번호:</label>
+                <input type="text" id="approvalNum" value="미승인" readonly>
+            </div>
+        </div>
+
+        <!-- 설정동 1-10 -->
+        <div class="form-row">
+            <div class="form-group">
+                <label>설정동 1:</label>
+                <input type="text" id="dong1" value="전국코드">
+            </div>
+            <div class="form-group">
+                <label>설정동 2:</label>
+                <input type="text" id="dong2" value="중화동 서울특별시 중랑구">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>설정동 3:</label>
+                <input type="text" id="dong3" value="묵동">
+            </div>
+            <div class="form-group">
+                <label>설정동 4:</label>
+                <input type="text" id="dong4" value="망우동">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>설정동 5:</label>
+                <input type="text" id="dong5" value="신내동">
+            </div>
+            <div class="form-group">
+                <label>설정동 6:</label>
+                <input type="text" id="dong6">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>설정동 7:</label>
+                <input type="text" id="dong7">
+            </div>
+            <div class="form-group">
+                <label>설정동 8:</label>
+                <input type="text" id="dong8">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>설정동 9:</label>
+                <input type="text" id="dong9">
+            </div>
+            <div class="form-group">
+                <label>설정동 10:</label>
+                <input type="text" id="dong10">
+            </div>
+        </div>
+
+        <!-- 길종류 1-5 -->
+        <div class="form-row">
+            <div class="form-group">
+                <label>길종류 1:</label>
+                <input type="text" id="road1" value="ex : 안길">
+            </div>
+            <div class="form-group">
+                <label>길종류 2:</label>
+                <input type="text" id="road2" value="번길">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>길종류 3:</label>
+                <input type="text" id="road3" value="가길">
+            </div>
+            <div class="form-group">
+                <label>길종류 4:</label>
+                <input type="text" id="road4" value="나길">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>길종류 5:</label>
+                <input type="text" id="road5" value="다길">
+            </div>
+            <div class="form-group empty"></div>
+        </div>
+
+        <!-- 테마 설정 -->
+        <div class="form-row">
+            <div class="form-group" style="flex: 1;">
+                <label>테마 선택:</label>
+                <div class="theme-selector">
+                    <div>
+                        <div class="theme-option active" data-theme="lavender" onclick="selectTheme('lavender',this)">
+                        </div>
+                        <div class="theme-label">라벤더</div>
+                    </div>
+                    <div>
+                        <div class="theme-option" data-theme="mint" onclick="selectTheme('mint',this)"></div>
+                        <div class="theme-label">민트</div>
+                    </div>
+                    <div>
+                        <div class="theme-option" data-theme="peach" onclick="selectTheme('peach',this)"></div>
+                        <div class="theme-label">피치</div>
+                    </div>
+                    <div>
+                        <div class="theme-option" data-theme="sky" onclick="selectTheme('sky',this)"></div>
+                        <div class="theme-label">스카이</div>
+                    </div>
+                    <div>
+                        <div class="theme-option" data-theme="rose" onclick="selectTheme('rose',this)"></div>
+                        <div class="theme-label">로즈</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 라디오 옵션 -->
+        <div class="radio-section">
+            <div class="radio-group">
+                <label class="radio-label">지도동선표시:</label>
+                <label class="radio-option">
+                    <input type="radio" name="mapLine" value="use">
+                    <span class="use">사용</span>
+                </label>
+                <label class="radio-option">
+                    <input type="radio" name="mapLine" value="notuse" checked>
+                    <span class="notuse">미사용</span>
+                </label>
+            </div>
+
+            <div class="radio-group">
+                <label class="radio-label">목적지도착음:</label>
+                <label class="radio-option">
+                    <input type="radio" name="arrivalSound" value="use">
+                    <span class="use">사용</span>
+                </label>
+                <label class="radio-option">
+                    <input type="radio" name="arrivalSound" value="notuse" checked>
+                    <span class="notuse">미사용</span>
+                </label>
+            </div>
+
+            <div class="radio-group">
+                <label class="radio-label">키보드소리음:</label>
+                <label class="radio-option">
+                    <input type="radio" name="keyboardSound" value="use">
+                    <span class="use">사용</span>
+                </label>
+                <label class="radio-option">
+                    <input type="radio" name="keyboardSound" value="notuse" checked>
+                    <span class="notuse">미사용</span>
+                </label>
+            </div>
+        </div>
+    </div>
+
+
+    <script src="app-settings.js"></script>
+</body>
+
+</html>

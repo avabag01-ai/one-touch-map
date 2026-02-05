@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>배송 리스트</title>
+    <link rel="stylesheet" href="list-style.css">
+    <link rel="stylesheet" href="main-style.css">
+    <script src="android-back.js"></script>
+    <script>(function () { var t = localStorage.getItem('appTheme'); if (t) document.documentElement.setAttribute('data-theme', t); })();</script>
+</head>
+
+<body>
+    <!-- 헤더 -->
+    <div class="header">
+        <button class="back-btn" onclick="location.replace('index.html')">←</button>
+        <span class="header-title">주소 목록 (<span id="totalCount">0</span>)</span>
+        <button class="menu-btn"
+            style="font-size: 14px; background: #FFC107; padding: 6px 10px; border-radius: 4px; color: #000;"
+            id="optimizeBtn">🚀최적경로</button>
+    </div>
+
+    <!-- 상단 버튼들 -->
+    <div class="action-buttons">
+        <button class="action-btn" onclick="location.href='map.html'">
+            지도
+        </button>
+        <button class="action-btn" id="deleteBtn">
+            삭제
+        </button>
+        <button class="action-btn" id="urgentBtn">
+            긴급
+        </button>
+        <button class="action-btn" id="carryoverBtn">
+            이월
+        </button>
+    </div>
+
+    <div class="full-width-btn">
+        <button class="action-btn-full">선택한주소 사용자 변경</button>
+    </div>
+
+    <!-- 레이어 저장 버튼 -->
+    <div class="layer-buttons">
+        <button class="layer-btn" data-layer="1">지금갈곳</button>
+        <button class="layer-btn" data-layer="2">나중에갈곳</button>
+        <button class="layer-btn" data-layer="3">전체</button>
+        <button class="layer-btn clear" data-layer="0">해제</button>
+    </div>
+
+    <!-- 배송 리스트 -->
+    <div class="delivery-list">
+        <!-- 전체 선택 -->
+        <div class="list-header">
+            <label class="checkbox-label">
+                <input type="checkbox" id="selectAll">
+                <span>전체선택 (<span id="totalCount">0</span>건)</span>
+            </label>
+            <div class="date-container" style="display:flex; align-items:center; gap:5px;">
+                <div class="date" id="currentDate" style="cursor:pointer; color:#3F51B5; font-weight:bold;"></div>
+                <input type="date" id="datePicker" style="display:none;">
+                <span style="font-size:12px; cursor:pointer;"
+                    onclick="document.getElementById('datePicker').showPicker()">📅</span>
+            </div>
+        </div>
+
+        <!-- 배송 목록 -->
+        <div id="deliveryItems">
+            <!-- 동적으로 생성됨 -->
+        </div>
+    </div>
+
+    <!-- 정보 입력 모달 -->
+    <div id="infoModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="max-width: 320px;">
+            <h3 style="margin-bottom: 15px;">배송 정보 입력</h3>
+
+            <div style="margin-bottom: 12px;">
+                <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">📞 전화번호</label>
+                <input type="tel" id="modalPhone" placeholder="010-1234-5678" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            </div>
+
+            <div style="margin-bottom: 12px;">
+                <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">🚚 톤수</label>
+                <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-bottom: 6px;">
+                    <button class="tonnage-btn" data-value="0.5">0.5t</button>
+                    <button class="tonnage-btn" data-value="1">1t</button>
+                    <button class="tonnage-btn" data-value="1.5">1.5t</button>
+                    <button class="tonnage-btn" data-value="2">2t</button>
+                    <button class="tonnage-btn" data-value="2.5">2.5t</button>
+                    <button class="tonnage-btn" data-value="3">3t</button>
+                    <button class="tonnage-btn" data-value="3.5">3.5t</button>
+                    <button class="tonnage-btn" data-value="4">4t</button>
+                    <button class="tonnage-btn" data-value="4.5">4.5t</button>
+                    <button class="tonnage-btn" data-value="5">5t</button>
+                </div>
+                <input type="number" id="modalTonnage" placeholder="직접 입력" step="0.5" min="0" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">📝 메모</label>
+                <textarea id="modalMemo" placeholder="메모 입력" rows="3" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; resize: none;"></textarea>
+            </div>
+
+            <div style="display: flex; gap: 8px;">
+                <button id="cancelInfoBtn" style="flex: 1; padding: 10px; background: #999; color: white; border: none; border-radius: 4px; cursor: pointer;">취소</button>
+                <button id="saveInfoBtn" style="flex: 1; padding: 10px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer;">저장</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 스크립트 -->
+    <script src="route-optimizer.js"></script>
+    <script src="anchor-system.js"></script>
+    <script src="list-app.js"></script>
+</body>
+
+</html>
