@@ -137,64 +137,30 @@
 
         /* WMS 건물번호 레이어 확대 */
         .leaflet-tile-pane .leaflet-layer:last-child .leaflet-tile {
-            transform: scale(1.15);
+            transform: scale(1.4);
             transform-origin: center;
         }
 
-        /* 커스텀 마커 - 반투명, 작은 크기, 가변 너비 */
+        /* 커스텀 마커 - 사각형, 외곽선 없음 */
         .custom-marker {
-            background: rgba(128, 128, 128, 0.7); /* 기본: 회색 (미지정) - 반투명 */
+            background: rgba(33, 150, 243, 0.9);
             color: white;
-            border: 1px solid rgba(255, 255, 255, 0.9);
+            border: none;
             border-radius: 3px;
             min-width: 24px;
-            max-width: 60px;
             height: 20px;
-            padding: 2px 4px;
+            padding: 0 4px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 10px;
-            font-weight: bold;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-            letter-spacing: -0.5px;
-            text-shadow: 0.5px 0.5px 1px rgba(0, 0, 0, 0.7);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            font-weight: 500;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+            letter-spacing: 0.5px;
         }
 
-        /* 긴급 마커는 최우선 */
         .custom-marker.urgent {
-            background: rgba(244, 67, 54, 0.8) !important;
-            border-color: rgba(255, 255, 255, 1) !important;
-            animation: pulse 1.5s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.08); }
-        }
-
-        /* 레이어별 색상 - 지금갈곳만 선명하게 */
-        .custom-marker.layer-1 {
-            background: rgba(33, 150, 243, 0.95); /* 지금갈곳: 파랑 - 선명 */
-            opacity: 1;
-        }
-
-        .custom-marker.layer-2 {
-            background: rgba(255, 152, 0, 0.7); /* 나중에갈곳: 주황 */
-            opacity: 0.6;
-        }
-
-        .custom-marker.layer-3 {
-            background: rgba(144, 238, 144, 0.7); /* 전체: 연두 */
-            opacity: 0.6;
-        }
-
-        .custom-marker.layer-0 {
-            background: rgba(128, 128, 128, 0.7); /* 미지정: 회색 */
-            opacity: 0.6;
+            background: #F44336;
         }
 
         /* 현재 위치 버튼 */
@@ -220,12 +186,57 @@
             background: #F0F0F0;
         }
 
+        /* GPS 파란 점 + Pulse */
+        .gps-pulse-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .gps-dot {
+            width: 14px;
+            height: 14px;
+            background-color: #2196F3;
+            border: 2px solid white;
+            border-radius: 50%;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+            z-index: 10;
+        }
+
+        .gps-pulse {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background-color: rgba(33, 150, 243, 0.4);
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+            z-index: 1;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(0.5);
+                opacity: 0.8;
+            }
+
+            100% {
+                transform: scale(1.5);
+                opacity: 0;
+            }
+        }
+
+        /* 활성화된 버튼 */
+        .location-btn.active {
+            background-color: #2196F3;
+            color: white;
+            border-color: #2196F3;
+        }
     </style>
 </head>
 
 <body>
     <!-- 뒤로가기 버튼 -->
-    <button class="back-btn" onclick="location.href='list.html'">←</button>
+    <button class="back-btn" onclick="location.href='index.html'">←</button>
     <span id="headerTitle" style="display:none;"></span>
 
     <!-- 레이어 토글 버튼 -->
@@ -234,9 +245,11 @@
     <!-- 레이어 필터 (접이식) -->
     <div class="layer-filter" id="layerFilter">
         <button class="filter-btn active" data-layer="all">전체</button>
-        <button class="filter-btn" data-layer="1" style="background: #2196F3; color: white;">지금갈곳</button>
-        <button class="filter-btn" data-layer="2" style="background: #FF9800; color: white;">나중에갈곳</button>
-        <button class="filter-btn" data-layer="3" style="background: #90EE90; color: white;">전체표시</button>
+        <button class="filter-btn" data-layer="1">L1</button>
+        <button class="filter-btn" data-layer="2">L2</button>
+        <button class="filter-btn" data-layer="3">L3</button>
+        <button class="filter-btn" data-layer="4">L4</button>
+        <button class="filter-btn" data-layer="5">L5</button>
         <button class="filter-btn" data-layer="0">미지정</button>
     </div>
 
@@ -252,91 +265,55 @@
 
     <script src="android-back.js"></script>
     <script src="route-optimizer.js"></script>
+
     <script>
-        // Desktop User-Agent Spoofing
-        if (navigator.userAgentData) {
-            // High-level API for modern browsers
-            console.log("Spoofing User-Agent hints...");
-        }
-
-        // 브라우저 렌더링 최적화 및 전체화면 유도
-        window.addEventListener('load', () => {
-            window.scrollTo(0, 1);
-            document.documentElement.style.height = '100vh';
-            document.body.style.height = '100vh';
-        });
-
+        // 전역 변수
         let map;
-        let markers = [];
         let deliveries = [];
+        let markers = [];
         let currentLayer = 'all';
-        let selectedDate = new Date().toISOString().split('T')[0];
 
         // 지도 초기화
         function initMap() {
-            const center = [37.6063, 127.0925]; // 중랑구 중심
+            map = L.map('map', { rotate: true, bearing: 0 }).setView([37.6063, 127.0925], 16);
 
-            // 지도 회전 기능 활성화 (rotate: true)
-            map = L.map('map', {
-                center: center,
-                zoom: 18,
-                zoomControl: false,
-                rotate: true,     // 회전 활성화
-                touchRotate: true // 터치 회전 활성화
-            });
+            // VWorld 기본 배경지도 (Base)
+            vworldBaseLayer = L.tileLayer(
+                'https://api.vworld.kr/req/wmts/1.0.0/EEB68327-5D04-3BE3-9072-D3ECFCCC26A2/Base/{z}/{y}/{x}.png',
+                {
+                    attribution: '&copy; VWorld',
+                    maxZoom: 19,
+                    minZoom: 7
+                }
+            ).addTo(map);
 
-            L.control.zoom({ position: 'bottomright' }).addTo(map);
+            // VWorld 도로명주소 건물번호 레이어 (lt_c_spbd)
+            addressLayer = L.tileLayer.wms(
+                'https://api.vworld.kr/req/wms',
+                {
+                    key: 'EEB68327-5D04-3BE3-9072-D3ECFCCC26A2',
+                    domain: 'http://localhost',
+                    service: 'WMS',
+                    request: 'GetMap',
+                    layers: 'lt_c_spbd',
+                    version: '1.3.0',
+                    styles: 'lt_c_spbd',
+                    format: 'image/png',
+                    transparent: true,
+                    crs: L.CRS.EPSG3857,
+                    maxZoom: 19,
+                    opacity: 1.0,
+                    attribution: ''
+                }
+            ).addTo(map);
 
-            // 줌 변경 이벤트: 마커 라벨 업데이트
-            map.on('zoomend', () => {
-                const currentZoom = map.getZoom();
-                map.eachLayer(layer => {
-                    if (layer instanceof L.Marker && layer._customData) {
-                        const { buildingNo, seqNo } = layer._customData;
-                        const newLabel = currentZoom >= 16 ? (buildingNo || seqNo) : seqNo;
-                        const markerElement = layer.getElement();
-                        if (markerElement) {
-                            const span = markerElement.querySelector('span');
-                            if (span) span.textContent = newLabel;
-                        }
-                    }
-                });
-            });
-
-            loadDeliveries();
-            setupLayerFilter();
-            setInitialMapLayer();
+            // 지도 클릭 시 역지오코딩 (신주소 조회)
             setupMapClickAddress();
-        }
 
-        function setInitialMapLayer() {
-            // 1. 배경지도 (Base)
-            if (vworldBaseLayer) map.removeLayer(vworldBaseLayer);
+            // 배송지 표시
+            displayMarkers();
 
-            vworldBaseLayer = L.tileLayer('https://api.vworld.kr/req/wmts/1.0.0/' + VWORLD_KEY + '/Base/{z}/{y}/{x}.png', {
-                attribution: '© VWorld',
-                maxZoom: 19,
-                tileSize: 256
-            }).addTo(map);
-
-            // 2. 도로명주소 건물 레이어 (lt_c_spbd) - 건물 위 번호만 표시 (투명 배경)
-            if (addressLayer) map.removeLayer(addressLayer);
-
-            addressLayer = L.tileLayer.wms('https://api.vworld.kr/req/wms', {
-                layers: 'lt_c_spbd',
-                styles: 'lt_c_spbd',
-                format: 'image/png',
-                transparent: true,
-                version: '1.3.0',
-                key: VWORLD_KEY,
-                domain: 'localhost',
-                minZoom: 14,
-                maxZoom: 19,
-                zIndex: 200
-            }).addTo(map);
-        }
-
-        function setupLayerFilter() {
+            // 레이어 필터 버튼 이벤트
             document.querySelectorAll('.filter-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
@@ -347,113 +324,61 @@
             });
         }
 
-        function loadDeliveries() {
-            const saved = localStorage.getItem('deliveries');
-            if (saved) {
-                deliveries = JSON.parse(saved);
-                displayMarkers();
-            }
-        }
-
-        // 마커 표시 (지번 원리 + 겹침 펼치기)
+        // 배송지 마커 표시
         async function displayMarkers() {
-            markers.forEach(marker => map.removeLayer(marker));
+            markers.forEach(m => map.removeLayer(m));
             markers = [];
 
-            // 1. 날짜 결정 (리스트에서 넘어온 특정 아이디가 있다면 해당 날짜 우선)
-            const targetId = localStorage.getItem('selectedDeliveryId');
-            if (targetId) {
-                const target = deliveries.find(d => String(d.id) === String(targetId));
-                if (target && target.createdAt) {
-                    selectedDate = target.createdAt;
-                }
+            const data = localStorage.getItem('deliveries');
+            if (!data) {
+                deliveries = [];
+                return;
             }
 
-            // 2. 필터링 (레이어만 - 날짜 필터 제거)
-            let filtered = [...deliveries];
+            deliveries = JSON.parse(data);
+            const targetId = localStorage.getItem('selectedDeliveryId');
 
-            console.log('전체 배송지:', deliveries.length);
-            console.log('현재 레이어:', currentLayer);
-
-            // "all"이면 모든 마커 표시 (레이어별 색상 유지)
-            // 특정 레이어 번호면 해당 레이어만 필터링
+            // 레이어 필터링
+            let filtered = deliveries;
             if (currentLayer !== 'all') {
                 const layerNum = parseInt(currentLayer);
-                console.log('레이어 번호:', layerNum);
-                const beforeFilter = filtered.length;
-                filtered = filtered.filter(d => {
-                    const hasLayer = (d.layer || 0) === layerNum;
-                    console.log(`배송지 ${d.id} (${d.addressBefore}): layer=${d.layer}, 필요=${layerNum}, 일치=${hasLayer}`);
-                    return hasLayer;
-                });
-                console.log('레이어 필터 전:', beforeFilter, '레이어 필터 후:', filtered.length);
-            } else {
-                console.log('전체 모드: 모든 마커 표시 (레이어별 색상 적용)');
+                filtered = deliveries.filter(d => (d.layer || 0) === layerNum);
             }
 
             let needSave = false;
-            const posTracker = {};
 
             for (let i = 0; i < filtered.length; i++) {
                 const delivery = filtered[i];
-                const originalIndex = deliveries.indexOf(delivery);
-
-                // 지번 원리로 좌표 찾기
-                if (!delivery.lat || !delivery.lng) {
-                    const coords = await geocodeAddressVWorld(delivery.fullAddress);
-                    if (coords) {
-                        delivery.lat = coords.lat;
-                        delivery.lng = coords.lng;
-                        needSave = true;
-                    }
-                    await new Promise(r => setTimeout(r, 150));
-                }
+                const originalIndex = deliveries.findIndex(d => d.id === delivery.id);
 
                 let lat = delivery.lat;
                 let lng = delivery.lng;
 
-                if (lat && lng) {
-                    // 데이터 정제: 이미 있는 도로명주소가 유효하지 않으면(로/길 없음) 삭제하여 재조회 유도
-                    if (delivery.roadAddress && !/[로길]/.test(delivery.roadAddress)) {
-                        delivery.roadAddress = null;
-                        needSave = true;
-                    }
-
-                    // 수동 입력된 addressAfter가 있으면 도로명주소로 사용
-                    if (!delivery.roadAddress && delivery.addressAfter && /[로길]/.test(delivery.addressAfter)) {
-                        delivery.roadAddress = delivery.addressAfter;
-                        needSave = true;
-                    }
-
-                    // 신주소(도로명) 없으면 조회 (좌표가 있을 때만)
-                    if (!delivery.roadAddress) {
-                        const roadAddr = await getRoadAddressFromCoords(lat, lng);
-                        if (roadAddr) {
-                            delivery.roadAddress = roadAddr;
+                // 좌표 없으면 지오코딩
+                if (!lat || !lng) {
+                    const address = delivery.addressBefore || delivery.addressAfter;
+                    if (address) {
+                        const coord = await geocodeAddressVWorld(address);
+                        if (coord) {
+                            lat = coord.lat;
+                            lng = coord.lng;
+                            deliveries[originalIndex].lat = lat;
+                            deliveries[originalIndex].lng = lng;
                             needSave = true;
-                            await new Promise(r => setTimeout(r, 50)); // API 부하 방지
+
+                            // 도로명주소 조회 (역지오코딩)
+                            const roadAddr = await getRoadAddressFromCoords(lat, lng);
+                            if (roadAddr) {
+                                deliveries[originalIndex].roadAddress = roadAddr;
+                            }
                         }
                     }
+                }
 
-                    const posKey = `${lat.toFixed(6)},${lng.toFixed(6)}`;
-                    if (posTracker[posKey]) {
-                        const count = posTracker[posKey];
-                        const angle = (count * 137.5) * (Math.PI / 180);
-                        const radius = 0.00006 * Math.sqrt(count);
-                        lat += Math.cos(angle) * radius;
-                        lng += Math.sin(angle) * radius;
-                        posTracker[posKey]++;
-                    } else {
-                        posTracker[posKey] = 1;
-                    }
-
+                if (lat && lng) {
                     const markerDiv = document.createElement('div');
-                    // 레이어 클래스 (undefined나 null이면 layer-0으로 처리)
-                    const layerValue = delivery.layer !== undefined && delivery.layer !== null ? delivery.layer : 0;
-                    const layerClass = `layer-${layerValue}`;
-                    const urgentClass = delivery.priority === 'urgent' ? 'urgent' : '';
-                    markerDiv.className = `custom-marker ${urgentClass} ${layerClass}`;
-                    console.log(`마커 생성: ID=${delivery.id}, layer=${delivery.layer}, className="${markerDiv.className}"`);
+                    markerDiv.className = 'custom-marker';
+                    if (delivery.urgent) markerDiv.classList.add('urgent');
 
                     // 신주소 건물 번호 추출 (roadAddress 우선, 없으면 addressBefore/addressAfter)
                     let buildingNo = "";
@@ -465,16 +390,10 @@
                         if (matches.length > 0) buildingNo = matches[matches.length - 1][1];
                     }
 
-                    // 순번
-                    const seqNo = originalIndex + 1;
+                    // fallback: 순번
+                    const label = buildingNo || (originalIndex + 1);
 
-                    // 줌 레벨에 따라 표시 내용 결정: 16 이상이면 건물번호, 미만이면 순번
-                    const currentZoom = map.getZoom();
-                    const initialLabel = currentZoom >= 16 ? (buildingNo || seqNo) : seqNo;
-
-                    markerDiv.innerHTML = `<span>${initialLabel}</span>`;
-                    markerDiv.dataset.buildingNo = buildingNo;
-                    markerDiv.dataset.seqNo = seqNo;
+                    markerDiv.innerHTML = `<span>${label}</span>`;
 
                     const icon = L.divIcon({
                         html: markerDiv.outerHTML,
@@ -485,26 +404,9 @@
 
                     const marker = L.marker([lat, lng], { icon: icon }).addTo(map);
 
-                    // 줌 변경 시 마커 라벨 업데이트를 위해 저장
-                    marker._customData = {
-                        buildingNo: buildingNo,
-                        seqNo: seqNo
-                    };
-
                     const popupContent = document.createElement('div');
                     const roadAddr = delivery.roadAddress || delivery.addressAfter || '';
-
-                    // OCR 정보가 있으면 한 번에 표시
-                    const hasInfo = delivery.phone || delivery.memo;
-                    const infoSection = hasInfo
-                        ? `<div style="background:#E3F2FD; padding:8px; border-radius:6px; margin-bottom:10px; border-left:3px solid #2196F3;">
-                            ${delivery.phone ? `<div style="margin-bottom:4px;"><a href="tel:${delivery.phone}" style="color:#1976D2; text-decoration:none; font-size:13px; font-weight:bold;">📞 ${delivery.phone}</a></div>` : ''}
-                            ${delivery.memo ? `<div style="margin-top:6px; padding-top:6px; border-top:1px solid #BBDEFB;"><div style="font-size:11px; color:#1976D2; font-weight:bold; margin-bottom:2px;">📝 메모</div><div style="font-size:13px; color:#333;">${delivery.memo}</div></div>` : ''}
-                           </div>`
-                        : '';
-
                     popupContent.innerHTML = `
-                        ${infoSection}
                         <div style="margin-bottom:8px;">
                             ${roadAddr ? `<b style="color:#1976D2; font-size:14px;">📍 ${roadAddr}</b><br>` : ''}
                             <span style="color:#666; font-size:12px;">${delivery.addressBefore || ''}</span>
@@ -553,22 +455,34 @@
             }
         }
 
-        // [핵심] 모든 주소를 지번 원리로 강제 재정렬
-        async function relocateAllMarkers() {
-            deliveries.forEach(d => {
-                d.lat = null;
-                d.lng = null;
-                d.roadAddress = null; // 도로명주소도 초기화하여 재조회 유도
-            });
+        // 빨간 핀: 내 위치로 즉시 이동 (캐시된 위치 우선 사용으로 딜레이 제거)
+        function goToMyLocation() {
+            if (!navigator.geolocation) {
+                alert('GPS를 지원하지 않습니다');
+                return;
+            }
 
-            const btn = document.getElementById('relocateBtn');
-            btn.textContent = '정렬중...';
-            btn.disabled = true;
+            // 이미 GPS 마커가 있으면 그 위치로 즉시 이동 (딜레이 없음)
+            if (gpsMarker) {
+                const pos = gpsMarker.getLatLng();
+                map.setView([pos.lat, pos.lng], 18, { animate: true, duration: 0.3 });
+                return;
+            }
 
-            await displayMarkers();
-
-            btn.textContent = '지번정렬';
-            btn.disabled = false;
+            // GPS 마커 없으면 maximumAge 허용해서 캐시된 위치라도 빠르게 가져옴
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    const lat = pos.coords.latitude;
+                    const lng = pos.coords.longitude;
+                    updatePosition(pos);
+                    map.setView([lat, lng], 18, { animate: true, duration: 0.3 });
+                },
+                (err) => {
+                    alert('위치를 가져올 수 없습니다');
+                    console.error('GPS Error:', err);
+                },
+                { enableHighAccuracy: true, maximumAge: 30000, timeout: 5000 }
+            );
         }
 
         // VWorld 설정
@@ -595,132 +509,155 @@
             return null;
         }
 
-        // 지도 클릭 시 주소 조회 기능 제거 (불필요)
+        // 지도 클릭 시 신주소 조회 (역지오코딩)
         function setupMapClickAddress() {
-            // 기능 비활성화
-        }
+            map.on('click', async (e) => {
+                const lat = e.latlng.lat;
+                const lng = e.latlng.lng;
 
-        let watchId = null;
-        let isTrackingEnabled = false;
-        let userLocationMarker = null;
+                // 로딩 팝업 표시
+                const popup = L.popup()
+                    .setLatLng(e.latlng)
+                    .setContent('<div style="text-align:center; padding:4px;">🔍 주소 조회중...</div>')
+                    .openOn(map);
 
-        // URL 파라미터로 초기 모드 설정
-        const urlParams = new URLSearchParams(window.location.search);
-        let mapMode = urlParams.get('mode') === 'gps' ? 'gps' : 'addresses';
+                try {
+                    // VWorld 역지오코딩 API (도로명주소)
+                    const url = `https://api.vworld.kr/req/address?service=address&request=getAddress&version=2.0&crs=epsg:4326&point=${lng},${lat}&format=json&type=ROAD&key=${VWORLD_KEY}`;
+                    const res = await fetch(url);
+                    const data = await res.json();
 
-        // GPS 추적 시작 (Leaflet 마커 사용)
-        function startLocationTracking() {
-            if (!navigator.geolocation) {
-                alert('이 기기는 GPS를 지원하지 않습니다.');
-                return;
-            }
+                    let roadAddr = '';
+                    let jibunAddr = '';
 
-            isTrackingEnabled = true;
-
-            watchId = navigator.geolocation.watchPosition(
-                (pos) => {
-                    const lat = pos.coords.latitude;
-                    const lng = pos.coords.longitude;
-
-                    // Leaflet 마커로 GPS 위치 표시 (지도 레이어에 고정)
-                    if (userLocationMarker) {
-                        userLocationMarker.setLatLng([lat, lng]);
-                    } else {
-                        userLocationMarker = L.circleMarker([lat, lng], {
-                            radius: 8,
-                            fillColor: '#FF0000',
-                            color: '#FFFFFF',
-                            weight: 3,
-                            opacity: 1,
-                            fillOpacity: 1,
-                            interactive: false,
-                            pane: 'markerPane'
-                        }).addTo(map);
+                    if (data.response && data.response.status === 'OK' && data.response.result) {
+                        const result = data.response.result[0];
+                        roadAddr = result.text || '';
                     }
 
-                    // GPS 모드일 때만 지도 중심을 내 위치로 이동
-                    if (isTrackingEnabled && mapMode === 'gps') {
-                        map.setView([lat, lng], map.getZoom(), { animate: false });
-                    }
-
-                    console.log('현재 위치 업데이트:', lat, lng);
-                },
-                (error) => {
-                    console.error('위치 추적 오류:', error);
-                    if (!window.gpsErrorShown) {
-                        window.gpsErrorShown = true;
-                        let errorMsg = '위치를 가져올 수 없습니다.\n';
-                        switch(error.code) {
-                            case error.PERMISSION_DENIED:
-                                errorMsg += 'GPS 권한이 거부되었습니다.\n설정에서 위치 권한을 허용해주세요.';
-                                break;
-                            case error.POSITION_UNAVAILABLE:
-                                errorMsg += '위치 정보를 사용할 수 없습니다.\nGPS를 켜주세요.';
-                                break;
-                            case error.TIMEOUT:
-                                errorMsg += '위치 요청 시간이 초과되었습니다.';
-                                break;
-                            default:
-                                errorMsg += '알 수 없는 오류가 발생했습니다.';
+                    // 지번주소도 조회
+                    try {
+                        const url2 = `https://api.vworld.kr/req/address?service=address&request=getAddress&version=2.0&crs=epsg:4326&point=${lng},${lat}&format=json&type=PARCEL&key=${VWORLD_KEY}`;
+                        const res2 = await fetch(url2);
+                        const data2 = await res2.json();
+                        if (data2.response && data2.response.status === 'OK' && data2.response.result) {
+                            jibunAddr = data2.response.result[0].text || '';
                         }
-                        alert(errorMsg);
+                    } catch (e2) { }
+
+                    let html = '<div style="font-size:13px; line-height:1.6; max-width:250px;">';
+                    if (roadAddr) {
+                        html += `<div style="font-weight:bold; color:#1976D2;">📍 ${roadAddr}</div>`;
                     }
-                },
-                {
-                    enableHighAccuracy: true,
-                    timeout: 5000,
-                    maximumAge: 0
+                    if (jibunAddr) {
+                        html += `<div style="color:#666; font-size:11px;">지번: ${jibunAddr}</div>`;
+                    }
+                    if (!roadAddr && !jibunAddr) {
+                        html += '<div style="color:#999;">주소를 찾을 수 없습니다</div>';
+                    }
+                    // 복사 버튼
+                    if (roadAddr) {
+                        html += `<button onclick="navigator.clipboard.writeText('${roadAddr.replace(/'/g, "\\'")}'); this.textContent='복사됨!'; setTimeout(()=>this.textContent='주소 복사',1000)" style="margin-top:6px; background:#4CAF50; color:white; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:11px; width:100%;">주소 복사</button>`;
+                    }
+                    html += '</div>';
+
+                    popup.setContent(html);
+                } catch (err) {
+                    popup.setContent('<div style="color:red; padding:4px;">주소 조회 실패</div>');
+                    console.error('역지오코딩 오류:', err);
                 }
-            );
+            });
         }
 
-        // 위치 추적 중지
-        function stopLocationTracking() {
-            if (watchId !== null) {
-                navigator.geolocation.clearWatch(watchId);
-                watchId = null;
-            }
-            isTrackingEnabled = false;
-            if (userLocationMarker) {
-                map.removeLayer(userLocationMarker);
-                userLocationMarker = null;
-            }
-        }
+        // ========================================
+        // 📍 실시간 GPS 트래킹 (고정 모드)
+        // ========================================
+        let gpsMarker = null;
+        let watchId = null;
+        let isTracking = false;
 
-        // 지도 모드 전환
-        function toggleMapMode() {
-            if (mapMode === 'addresses') {
-                mapMode = 'gps';
-                document.getElementById('locationBtn').textContent = '🗺️';
-                document.getElementById('locationBtn').style.background = '#4CAF50';
-                // GPS 위치로 이동
-                if (userLocationMarker) {
-                    const latlng = userLocationMarker.getLatLng();
-                    map.setView(latlng, 18);
+        document.getElementById('locationBtn').addEventListener('click', toggleTracking);
+
+        function toggleTracking() {
+            const btn = document.getElementById('locationBtn');
+
+            if (isTracking) {
+                // 트래킹 종료
+                if (watchId !== null) {
+                    navigator.geolocation.clearWatch(watchId);
+                    watchId = null;
                 }
+                isTracking = false;
+                btn.classList.remove('active');
+
+                // 마커는 유지하되 업데이트만 중지
             } else {
-                mapMode = 'addresses';
-                document.getElementById('locationBtn').textContent = '📍';
-                document.getElementById('locationBtn').style.background = 'white';
-                // 주소 마커들로 이동
-                if (markers.length > 0) {
-                    const group = L.featureGroup(markers);
-                    map.fitBounds(group.getBounds().pad(0.3), { maxZoom: 18 });
+                // 트래킹 시작
+                if (!navigator.geolocation) {
+                    alert('GPS를 지원하지 않습니다');
+                    return;
                 }
+
+                isTracking = true;
+                btn.classList.add('active');
+
+                // 시작하자마자 현재 위치 한 번 잡기 (반응성 향상)
+                navigator.geolocation.getCurrentPosition(updatePosition, null, { enableHighAccuracy: true });
+
+                watchId = navigator.geolocation.watchPosition(
+                    updatePosition,
+                    (err) => {
+                        console.error("GPS Error:", err);
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        maximumAge: 0,
+                        timeout: 5000
+                    }
+                );
             }
         }
 
-        // 페이지 로드 시 자동으로 위치 추적 시작
-        startLocationTracking();
+        function updatePosition(pos) {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
 
-        // GPS 모드로 시작하는 경우 버튼 상태 업데이트
-        if (mapMode === 'gps') {
-            document.getElementById('locationBtn').textContent = '🗺️';
-            document.getElementById('locationBtn').style.background = '#4CAF50';
+            // 0. GPS 전용 Pane 생성 (최상단 노출 보장)
+            if (!map.getPane('gpsPane')) {
+                map.createPane('gpsPane');
+                map.getPane('gpsPane').style.zIndex = 2000; // 팝업보다 훨씬 높게
+                map.getPane('gpsPane').style.pointerEvents = 'none'; // 클릭 통과
+            }
+
+            // 1. 마커 업데이트 (파란 점 + Pulse)
+            if (!gpsMarker) {
+                const gpsIcon = L.divIcon({
+                    className: 'gps-pulse-icon',
+                    html: '<div class="gps-dot"></div><div class="gps-pulse"></div>',
+                    iconSize: [20, 20],
+                    iconAnchor: [10, 10]
+                });
+                gpsMarker = L.marker([lat, lng], {
+                    icon: gpsIcon,
+                    pane: 'gpsPane' // 최상단 Pane 사용
+                }).addTo(map);
+            } else {
+                gpsMarker.setLatLng([lat, lng]);
+            }
+
+            // 2. 지도 중심 이동 (트래킹 모드일 때만)
+            if (isTracking) {
+                const currentZoom = map.getZoom();
+                const targetZoom = currentZoom < 16 ? 17 : currentZoom;
+
+                map.setView([lat, lng], targetZoom, { animate: true, duration: 0.5 });
+            }
         }
 
-        // 위치 버튼 클릭: 지도 모드 전환
-        document.getElementById('locationBtn').addEventListener('click', toggleMapMode);
+        // 지도를 드래그하면 트래킹이 풀리는 게 자연스럽지만, 
+        // 사용자가 "고정"을 원했으므로 드래그 중에는 멈췄다가 끝나면 다시 돌아오는지 확인 필요.
+        // 여기선 watchPosition이 계속 map.setView를 때리므로 "강제 고정" 효과가 남.
+
 
         document.addEventListener('DOMContentLoaded', () => {
             initMap(); // 초기화하면서 layer도 설정됨
@@ -734,18 +671,18 @@
                 document.getElementById('layerFilter').classList.remove('open');
             });
 
-            // 지번 재정렬 버튼
-            const relBtn = document.createElement('button');
-            relBtn.id = 'relocateBtn';
-            relBtn.className = 'location-btn';
-            relBtn.style.bottom = '140px';
-            relBtn.style.fontSize = '12px';
-            relBtn.style.fontWeight = 'bold';
-            relBtn.style.background = '#FF5252';
-            relBtn.style.color = 'white';
-            relBtn.textContent = '지번정렬';
-            relBtn.onclick = relocateAllMarkers;
-            document.body.appendChild(relBtn);
+            // 내 위치로 즉시 이동 버튼 (빨간 핀)
+            const myLocBtn = document.createElement('button');
+            myLocBtn.id = 'myLocationBtn';
+            myLocBtn.className = 'location-btn';
+            myLocBtn.style.bottom = '140px';
+            myLocBtn.style.fontSize = '20px';
+            myLocBtn.style.background = '#FF5252';
+            myLocBtn.style.color = 'white';
+            myLocBtn.style.border = '2px solid #D32F2F';
+            myLocBtn.innerHTML = '📌';
+            myLocBtn.onclick = goToMyLocation;
+            document.body.appendChild(myLocBtn);
 
             // 날짜 변경 기능 제거됨 (헤더 없음)
         });

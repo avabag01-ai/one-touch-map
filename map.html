@@ -256,10 +256,6 @@
     <!-- 지도 - 전체화면 -->
     <div id="map" style="position: absolute; top: 0; bottom: 0; width: 100%; height: 100vh;"></div>
 
-    <!-- GPS 테스트 모드 버튼 (임시) -->
-        style="position:fixed; top:70px; right:12px; z-index:1000; background:white; border:2px solid #333; padding:6px 10px; font-size:12px; border-radius:4px; opacity:0.9;">
-    </button>
-
     <!-- 현재 위치 버튼 -->
     <button class="location-btn" id="locationBtn">📍</button>
 
@@ -283,9 +279,9 @@
             map = L.map('map', {
                 rotate: true,
                 touchRotate: true,
-                attributionControl: false, // Leaflet 로고 제거
+                attributionControl: false,
                 rotateControl: {
-                    closeOnZeroBearing: false // 나침반 항상 표시
+                    closeOnZeroBearing: false
                 },
                 bearing: 0
             }).setView([37.6063, 127.0925], 16);
@@ -300,7 +296,7 @@
                 }
             ).addTo(map);
 
-            // VWorld 도로명주소 레이어 (lt_c_adsido_info)
+            // VWorld 도로명주소 건물번호 레이어 (lt_c_spbd)
             addressLayer = L.tileLayer.wms(
                 'https://api.vworld.kr/req/wms',
                 {
@@ -308,9 +304,9 @@
                     domain: 'http://localhost',
                     service: 'WMS',
                     request: 'GetMap',
-                    layers: 'lt_c_adsido_info',
+                    layers: 'lt_c_spbd',
                     version: '1.3.0',
-                    styles: 'lt_c_adsido_info',
+                    styles: 'lt_c_spbd',
                     format: 'image/png',
                     transparent: true,
                     crs: L.CRS.EPSG3857,
@@ -320,8 +316,8 @@
                 }
             ).addTo(map);
 
-            // 지도 클릭 시 역지오코딩 (신주소 조회) - 기능 제거됨 (사용자 요청)
-            // setupMapClickAddress();
+            // 지도 클릭 시 역지오코딩 (신주소 조회)
+            setupMapClickAddress();
 
             // 배송지 표시
             displayMarkers();
@@ -468,22 +464,34 @@
             }
         }
 
-        // [핵심] 모든 주소를 지번 원리로 강제 재정렬
-        async function relocateAllMarkers() {
-            deliveries.forEach(d => {
-                d.lat = null;
-                d.lng = null;
-                d.roadAddress = null; // 도로명주소도 초기화하여 재조회 유도
-            });
+        // 빨간 핀: 내 위치로 즉시 이동 (캐시된 위치 우선 사용으로 딜레이 제거)
+        function goToMyLocation() {
+            if (!navigator.geolocation) {
+                alert('GPS를 지원하지 않습니다');
+                return;
+            }
 
-            const btn = document.getElementById('relocateBtn');
-            btn.textContent = '정렬중...';
-            btn.disabled = true;
+            // 이미 GPS 마커가 있으면 그 위치로 즉시 이동 (딜레이 없음)
+            if (gpsMarker) {
+                const pos = gpsMarker.getLatLng();
+                map.setView([pos.lat, pos.lng], 18, { animate: true, duration: 0.3 });
+                return;
+            }
 
-            await displayMarkers();
-
-            btn.textContent = '지번정렬';
-            btn.disabled = false;
+            // GPS 마커 없으면 maximumAge 허용해서 캐시된 위치라도 빠르게 가져옴
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    const lat = pos.coords.latitude;
+                    const lng = pos.coords.longitude;
+                    updatePosition(pos);
+                    map.setView([lat, lng], 18, { animate: true, duration: 0.3 });
+                },
+                (err) => {
+                    alert('위치를 가져올 수 없습니다');
+                    console.error('GPS Error:', err);
+                },
+                { enableHighAccuracy: true, maximumAge: 30000, timeout: 5000 }
+            );
         }
 
         // VWorld 설정
@@ -569,17 +577,18 @@
                 }
             });
         }
+
         // ========================================
         // 📍 초고속 반응 GPS 트래킹
         // ========================================
         let gpsMarker = null;
         let watchId = null;
         let isTracking = false;
-        let isUserInteracting = false; 
+        let isUserInteracting = false;
 
         // 지도 조작 감지
         function setupInteractionListeners() {
-            if(!map) return;
+            if (!map) return;
             const pause = () => { isUserInteracting = true; };
             const resume = () => { setTimeout(() => isUserInteracting = false, 2000); };
             map.on('movestart', pause); map.on('zoomstart', pause); map.on('dragstart', pause);
@@ -590,31 +599,30 @@
 
         function toggleTracking() {
             const btn = document.getElementById('locationBtn');
-            
+
             // 1. 이미 파란 점(GPS 마커)이 있다면? -> 0초 대기, 즉시 이동!
             if (gpsMarker) {
                 const center = map.getCenter();
                 const markerLL = gpsMarker.getLatLng();
                 const dist = map.distance(center, markerLL);
-                
+
                 // 중심에서 5m 이상 벗어나 있으면 -> "즉시 이동" (트래킹 안 끔)
                 if (dist > 5) {
-                    // 현재 회전각 유지하면서 이동
                     const bearing = (map.getBearing && typeof map.getBearing === 'function') ? map.getBearing() : 0;
                     map.setView(markerLL, 17, {
-                        animate: true, 
-                        duration: 0.3, // 0.3초만에 슝!
+                        animate: true,
+                        duration: 0.3,
                         easeLinearity: 0.25,
                         bearing: bearing
                     });
-                    
+
                     // 만약 꺼져있던 상태라면 켜기
                     if (!isTracking) {
-                         isTracking = true;
-                         btn.classList.add('active');
-                         startWatch();
+                        isTracking = true;
+                        btn.classList.add('active');
+                        startWatch();
                     }
-                    return; // 함수 종료 (GPS 다시 안 부름)
+                    return;
                 }
             }
 
@@ -632,16 +640,16 @@
             if (!navigator.geolocation) { alert('GPS 불가'); return; }
             isTracking = true;
             setupInteractionListeners();
-            
-            // 초기 위치 잡기 (이미 마커 있으면 생략 가능하지만 정확도 위해 호출)
+
+            // 초기 위치 잡기
             if (!gpsMarker) {
-                navigator.geolocation.getCurrentPosition(updatePosition, null, {enableHighAccuracy: true, maximumAge: 0});
+                navigator.geolocation.getCurrentPosition(updatePosition, null, { enableHighAccuracy: true, maximumAge: 0 });
             }
-            
+
             if (watchId === null) {
                 watchId = navigator.geolocation.watchPosition(updatePosition, console.error, {
-                    enableHighAccuracy: true, 
-                    maximumAge: 0, 
+                    enableHighAccuracy: true,
+                    maximumAge: 0,
                     timeout: 5000
                 });
             }
@@ -658,36 +666,45 @@
         function updatePosition(pos) {
             const lat = pos.coords.latitude;
             const lng = pos.coords.longitude;
-            
+
             if (!map.getPane('gpsPane')) {
-                map.createPane('gpsPane'); map.getPane('gpsPane').style.zIndex = 2000;
+                map.createPane('gpsPane');
+                map.getPane('gpsPane').style.zIndex = 2000;
                 map.getPane('gpsPane').style.pointerEvents = 'none';
             }
 
             if (!gpsMarker) {
-                const icon = L.divIcon({className: 'gps-pulse-icon', html: '<div class="gps-dot"></div><div class="gps-pulse"></div>', iconSize: [20, 20]});
-                gpsMarker = L.marker([lat, lng], {icon: icon, pane: 'gpsPane'}).addTo(map);
+                const icon = L.divIcon({ className: 'gps-pulse-icon', html: '<div class="gps-dot"></div><div class="gps-pulse"></div>', iconSize: [20, 20] });
+                gpsMarker = L.marker([lat, lng], { icon: icon, pane: 'gpsPane' }).addTo(map);
             } else {
                 gpsMarker.setLatLng([lat, lng]);
             }
 
             if (isTracking && !isUserInteracting) {
                 const bearing = (map.getBearing && typeof map.getBearing === 'function') ? map.getBearing() : 0;
-                map.setView([lat, lng], 17, {bearing: bearing, animate: true, duration: 0.2});
+                map.setView([lat, lng], 17, { bearing: bearing, animate: true, duration: 0.2 });
             }
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            initMap(); 
+            initMap();
             document.getElementById('layerToggleBtn').addEventListener('click', () => document.getElementById('layerFilter').classList.toggle('open'));
             map.on('click', () => document.getElementById('layerFilter').classList.remove('open'));
-            
-            const relBtn = document.createElement('button');
-            relBtn.textContent = '지번정렬'; relBtn.className = 'location-btn';
-            relBtn.style.bottom = '140px'; relBtn.style.fontSize = '12px'; relBtn.style.background = '#FF5252'; relBtn.style.color = 'white';
-            relBtn.onclick = relocateAllMarkers;
-            document.body.appendChild(relBtn);
+
+            // 내 위치로 즉시 이동 버튼 (빨간 핀)
+            const myLocBtn = document.createElement('button');
+            myLocBtn.id = 'myLocationBtn';
+            myLocBtn.className = 'location-btn';
+            myLocBtn.style.bottom = '140px';
+            myLocBtn.style.fontSize = '20px';
+            myLocBtn.style.background = '#FF5252';
+            myLocBtn.style.color = 'white';
+            myLocBtn.style.border = '2px solid #D32F2F';
+            myLocBtn.innerHTML = '📌';
+            myLocBtn.onclick = goToMyLocation;
+            document.body.appendChild(myLocBtn);
         });
     </script>
 </body>
+
 </html>
