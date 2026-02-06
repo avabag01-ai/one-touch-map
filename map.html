@@ -256,6 +256,12 @@
     <!-- 지도 - 전체화면 -->
     <div id="map" style="position: absolute; top: 0; bottom: 0; width: 100%; height: 100vh;"></div>
 
+    <!-- GPS 테스트 모드 버튼 (임시) -->
+    <button id="gpsModeBtn"
+        style="position:fixed; top:70px; right:12px; z-index:1000; background:white; border:2px solid #333; padding:6px 10px; font-size:12px; border-radius:4px; opacity:0.9;">
+        모드: 스마트
+    </button>
+
     <!-- 현재 위치 버튼 -->
     <button class="location-btn" id="locationBtn">📍</button>
 
@@ -275,7 +281,16 @@
 
         // 지도 초기화
         function initMap() {
-            map = L.map('map', { rotate: true, bearing: 0 }).setView([37.6063, 127.0925], 16);
+            // [중요] touchRotate: true 추가하여 모바일 회전 활성화
+            map = L.map('map', {
+                rotate: true,
+                touchRotate: true,
+                attributionControl: false, // Leaflet 로고 제거
+                rotateControl: {
+                    closeOnZeroBearing: false // 나침반 항상 표시
+                },
+                bearing: 0
+            }).setView([37.6063, 127.0925], 16);
 
             // VWorld 기본 배경지도 (Base)
             vworldBaseLayer = L.tileLayer(
@@ -558,20 +573,34 @@
         }
 
         // ========================================
-        // 📍 실시간 GPS 트래킹 (고정 모드)
+        // 📍 실시간 GPS 트래킹 (스마트 모드: 터치 시 일시정지)
         // ========================================
         let gpsMarker = null;
         let watchId = null;
         let isTracking = false;
+        let isUserInteracting = false;
+
+        // 지도 조작 감지
+        function setupInteractionListeners() {
+            if (!map) return;
+            const setInteracting = () => { isUserInteracting = true; };
+            const unsetInteracting = () => { setTimeout(() => isUserInteracting = false, 2000); };
+
+            map.on('movestart', setInteracting);
+            map.on('zoomstart', setInteracting);
+            map.on('dragstart', setInteracting);
+
+            map.on('moveend', unsetInteracting);
+            map.on('zoomend', unsetInteracting);
+            map.on('dragend', unsetInteracting);
+        }
 
         document.getElementById('locationBtn').addEventListener('click', toggleTracking);
 
         function toggleTracking() {
             const btn = document.getElementById('locationBtn');
-            const icon = btn; // 버튼 자체가 아이콘 역할
 
             if (isTracking) {
-                // 트래킹 종료
                 if (watchId !== null) {
                     navigator.geolocation.clearWatch(watchId);
                     watchId = null;
@@ -579,7 +608,6 @@
                 isTracking = false;
                 btn.classList.remove('active');
             } else {
-                // 트래킹 시작
                 if (!navigator.geolocation) {
                     alert('GPS를 지원하지 않습니다');
                     return;
@@ -588,20 +616,12 @@
                 isTracking = true;
                 btn.classList.add('active');
 
-                // 시작하자마자 현재 위치 한 번 잡기 (반응성 향상)
-                navigator.geolocation.getCurrentPosition(updatePosition, null, { enableHighAccuracy: true });
+                setupInteractionListeners();
 
-                watchId = navigator.geolocation.watchPosition(
-                    updatePosition,
-                    (err) => {
-                        console.error("GPS Error:", err);
-                    },
-                    {
-                        enableHighAccuracy: true,
-                        maximumAge: 0,
-                        timeout: 5000
-                    }
-                );
+                navigator.geolocation.getCurrentPosition(updatePosition, null, { enableHighAccuracy: true });
+                watchId = navigator.geolocation.watchPosition(updatePosition, console.error, {
+                    enableHighAccuracy: true, maximumAge: 0, timeout: 5000
+                });
             }
         }
 
@@ -609,14 +629,12 @@
             const lat = pos.coords.latitude;
             const lng = pos.coords.longitude;
 
-            // 0. GPS 전용 Pane 생성 (모든 레이어보다 위에 표시)
             if (!map.getPane('gpsPane')) {
                 map.createPane('gpsPane');
                 map.getPane('gpsPane').style.zIndex = 2000;
                 map.getPane('gpsPane').style.pointerEvents = 'none';
             }
 
-            // 1. 마커 업데이트 (파란 점 + Pulse)
             if (!gpsMarker) {
                 const gpsIcon = L.divIcon({
                     className: 'gps-pulse-icon',
@@ -625,45 +643,38 @@
                     iconAnchor: [10, 10]
                 });
                 gpsMarker = L.marker([lat, lng], {
-                    icon: gpsIcon,
-                    pane: 'gpsPane' // 최상단 레이어에 배치
+                    icon: gpsIcon, pane: 'gpsPane'
                 }).addTo(map);
             } else {
                 gpsMarker.setLatLng([lat, lng]);
             }
 
-            // 2. 지도 중심 이동 (트래킹 모드일 때만)
             if (isTracking) {
+                if (isUserInteracting) return;
+
                 const currentZoom = map.getZoom();
                 const targetZoom = currentZoom < 16 ? 17 : currentZoom;
-
-                // [중요] 회전각 유지 (지도를 돌려놓고 이동할 때 풀리지 않게)
                 const currentBearing = (map.getBearing && typeof map.getBearing === 'function') ? map.getBearing() : 0;
 
-                // 부드러운 이동 (bearing 옵션 추가)
                 map.setView([lat, lng], targetZoom, {
                     bearing: currentBearing,
                     animate: true,
-                    duration: 0.1, // 반응 속도 UP
+                    duration: 0.1,
                     easeLinearity: 0.25
                 });
             }
         }
 
-
         document.addEventListener('DOMContentLoaded', () => {
-            initMap(); // 초기화하면서 layer도 설정됨
+            initMap();
 
-            // 레이어 필터 토글
             document.getElementById('layerToggleBtn').addEventListener('click', () => {
                 document.getElementById('layerFilter').classList.toggle('open');
             });
-            // 지도 클릭 시 필터 닫기
             map.on('click', () => {
                 document.getElementById('layerFilter').classList.remove('open');
             });
 
-            // 지번 재정렬 버튼
             const relBtn = document.createElement('button');
             relBtn.id = 'relocateBtn';
             relBtn.className = 'location-btn';
@@ -675,8 +686,6 @@
             relBtn.textContent = '지번정렬';
             relBtn.onclick = relocateAllMarkers;
             document.body.appendChild(relBtn);
-
-            // 날짜 변경 기능 제거됨 (헤더 없음)
         });
     </script>
 </body>
