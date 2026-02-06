@@ -185,6 +185,52 @@
         .location-btn:active {
             background: #F0F0F0;
         }
+
+        /* GPS 파란 점 + Pulse */
+        .gps-pulse-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .gps-dot {
+            width: 14px;
+            height: 14px;
+            background-color: #2196F3;
+            border: 2px solid white;
+            border-radius: 50%;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+            z-index: 10;
+        }
+
+        .gps-pulse {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background-color: rgba(33, 150, 243, 0.4);
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+            z-index: 1;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(0.5);
+                opacity: 0.8;
+            }
+
+            100% {
+                transform: scale(1.5);
+                opacity: 0;
+            }
+        }
+
+        /* 활성화된 버튼 */
+        .location-btn.active {
+            background-color: #2196F3;
+            color: white;
+            border-color: #2196F3;
+        }
     </style>
 </head>
 
@@ -261,8 +307,8 @@
                 }
             ).addTo(map);
 
-            // 지도 클릭 시 역지오코딩 (신주소 조회)
-            setupMapClickAddress();
+            // 지도 클릭 시 역지오코딩 (신주소 조회) - 기능 제거됨 (사용자 요청)
+            // setupMapClickAddress();
 
             // 배송지 표시
             displayMarkers();
@@ -512,44 +558,98 @@
         }
 
         // ========================================
-        // 📍 매우 간단한 GPS 표시 (단일 마커)
+        // 📍 실시간 GPS 트래킹 (고정 모드)
         // ========================================
         let gpsMarker = null;
-        
-        document.getElementById('locationBtn').addEventListener('click', () => {
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition((pos) => {
-                    const lat = pos.coords.latitude;
-                    const lng = pos.coords.longitude;
-                    
-                    // 이전 마커 제거
-                    if (gpsMarker) {
-                        map.removeLayer(gpsMarker);
-                    }
-                    
-                    // 단일 파란색 마커만 표시
-                    gpsMarker = L.circleMarker([lat, lng], {
-                        radius: 8,
-                        fillColor: '#4285F4',
-                        color: '#fff',
-                        weight: 2,
-                        opacity: 1,
-                        fillOpacity: 1,
-                        zIndexOffset: 10000
-                    }).addTo(map);
-                    
-                    // 위치로 이동
-                    map.setView([lat, lng], 18);
-                }, (error) => {
-                    alert('위치를 가져올 수 없습니다');
-                }, {
-                    enableHighAccuracy: true,
-                    timeout: 10000
-                });
+        let watchId = null;
+        let isTracking = false;
+
+        document.getElementById('locationBtn').addEventListener('click', toggleTracking);
+
+        function toggleTracking() {
+            const btn = document.getElementById('locationBtn');
+            const icon = btn; // 버튼 자체가 아이콘 역할
+
+            if (isTracking) {
+                // 트래킹 종료
+                if (watchId !== null) {
+                    navigator.geolocation.clearWatch(watchId);
+                    watchId = null;
+                }
+                isTracking = false;
+                btn.classList.remove('active');
             } else {
-                alert('GPS를 지원하지 않는 기기입니다');
+                // 트래킹 시작
+                if (!navigator.geolocation) {
+                    alert('GPS를 지원하지 않습니다');
+                    return;
+                }
+
+                isTracking = true;
+                btn.classList.add('active');
+
+                // 시작하자마자 현재 위치 한 번 잡기 (반응성 향상)
+                navigator.geolocation.getCurrentPosition(updatePosition, null, { enableHighAccuracy: true });
+
+                watchId = navigator.geolocation.watchPosition(
+                    updatePosition,
+                    (err) => {
+                        console.error("GPS Error:", err);
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        maximumAge: 0,
+                        timeout: 5000
+                    }
+                );
             }
-        });
+        }
+
+        function updatePosition(pos) {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+
+            // 0. GPS 전용 Pane 생성 (모든 레이어보다 위에 표시)
+            if (!map.getPane('gpsPane')) {
+                map.createPane('gpsPane');
+                map.getPane('gpsPane').style.zIndex = 2000;
+                map.getPane('gpsPane').style.pointerEvents = 'none';
+            }
+
+            // 1. 마커 업데이트 (파란 점 + Pulse)
+            if (!gpsMarker) {
+                const gpsIcon = L.divIcon({
+                    className: 'gps-pulse-icon',
+                    html: '<div class="gps-dot"></div><div class="gps-pulse"></div>',
+                    iconSize: [20, 20],
+                    iconAnchor: [10, 10]
+                });
+                gpsMarker = L.marker([lat, lng], {
+                    icon: gpsIcon,
+                    pane: 'gpsPane' // 최상단 레이어에 배치
+                }).addTo(map);
+            } else {
+                gpsMarker.setLatLng([lat, lng]);
+            }
+
+            // 2. 지도 중심 이동 (트래킹 모드일 때만)
+            if (isTracking) {
+                const currentZoom = map.getZoom();
+                const targetZoom = currentZoom < 16 ? 17 : currentZoom;
+
+                // [중요] 회전각 유지 (지도를 돌려놓고 이동할 때 풀리지 않게)
+                const currentBearing = (map.getBearing && typeof map.getBearing === 'function') ? map.getBearing() : 0;
+
+                // 부드러운 이동 (bearing 옵션 추가)
+                map.setView([lat, lng], targetZoom, {
+                    bearing: currentBearing,
+                    animate: true,
+                    duration: 0.1, // 반응 속도 UP
+                    easeLinearity: 0.25
+                });
+            }
+        }
+
 
         document.addEventListener('DOMContentLoaded', () => {
             initMap(); // 초기화하면서 layer도 설정됨
