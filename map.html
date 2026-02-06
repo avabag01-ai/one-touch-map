@@ -226,8 +226,6 @@
         let deliveries = [];
         let markers = [];
         let currentLayer = 'all';
-        let currentLocationMarker = null; // 현재 위치 마커 (단일)
-        let watchId = null; // GPS 추적 ID
 
         // 지도 초기화
         function initMap() {
@@ -514,98 +512,43 @@
         }
 
         // ========================================
-        // 📍 개선된 현재 위치 추적 (실시간 GPS)
+        // 📍 매우 간단한 GPS 표시 (단일 마커)
         // ========================================
+        let gpsMarker = null;
+        
         document.getElementById('locationBtn').addEventListener('click', () => {
-            if (!navigator.geolocation) {
-                alert('GPS를 지원하지 않는 기기입니다');
-                return;
-            }
-
-            // 이전 추적이 있으면 중지
-            if (watchId !== null) {
-                navigator.geolocation.clearWatch(watchId);
-                watchId = null;
-                
-                // 마커 제거
-                if (currentLocationMarker) {
-                    map.removeLayer(currentLocationMarker);
-                    currentLocationMarker = null;
-                }
-                
-                document.getElementById('locationBtn').style.background = 'white';
-                return;
-            }
-
-            // 실시간 위치 추적 시작
-            let isFirstPosition = true;
-            
-            watchId = navigator.geolocation.watchPosition(
-                (position) => {
-                    const lat = position.coords.latitude;
-                    const lng = position.coords.longitude;
-                    const accuracy = position.coords.accuracy;
-
-                    // 이전 마커 제거 (중복 방지)
-                    if (currentLocationMarker) {
-                        map.removeLayer(currentLocationMarker);
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition((pos) => {
+                    const lat = pos.coords.latitude;
+                    const lng = pos.coords.longitude;
+                    
+                    // 이전 마커 제거
+                    if (gpsMarker) {
+                        map.removeLayer(gpsMarker);
                     }
-
-                    // 새 마커 생성 (구글맵 스타일 파란색 원)
-                    currentLocationMarker = L.circleMarker([lat, lng], {
+                    
+                    // 단일 파란색 마커만 표시
+                    gpsMarker = L.circleMarker([lat, lng], {
                         radius: 8,
                         fillColor: '#4285F4',
                         color: '#fff',
-                        weight: 3,
+                        weight: 2,
                         opacity: 1,
-                        fillOpacity: 0.9,
-                        zIndexOffset: 10000  // 최상위 레이어
+                        fillOpacity: 1,
+                        zIndexOffset: 10000
                     }).addTo(map);
-
-                    // 정확도 원 표시 (선택사항)
-                    const accuracyCircle = L.circle([lat, lng], {
-                        radius: accuracy,
-                        color: '#4285F4',
-                        fillColor: '#4285F4',
-                        fillOpacity: 0.1,
-                        weight: 1,
-                        zIndexOffset: 9999
-                    }).addTo(map);
-
-                    // 3초 후 정확도 원 제거 (깔끔하게)
-                    setTimeout(() => {
-                        if (map.hasLayer(accuracyCircle)) {
-                            map.removeLayer(accuracyCircle);
-                        }
-                    }, 3000);
-
-                    // 첫 위치만 자동 이동
-                    if (isFirstPosition) {
-                        map.setView([lat, lng], 18);
-                        isFirstPosition = false;
-                    }
-
-                    // 버튼 색상 변경 (추적 중 표시)
-                    document.getElementById('locationBtn').style.background = '#E3F2FD';
-                },
-                (error) => {
-                    console.error('GPS 오류:', error);
+                    
+                    // 위치로 이동
+                    map.setView([lat, lng], 18);
+                }, (error) => {
                     alert('위치를 가져올 수 없습니다');
-                    
-                    // 추적 중지
-                    if (watchId !== null) {
-                        navigator.geolocation.clearWatch(watchId);
-                        watchId = null;
-                    }
-                    
-                    document.getElementById('locationBtn').style.background = 'white';
-                },
-                {
-                    enableHighAccuracy: true,  // 고정밀 GPS
-                    maximumAge: 0,              // 캐시 사용 안함
-                    timeout: 10000              // 10초 타임아웃
-                }
-            );
+                }, {
+                    enableHighAccuracy: true,
+                    timeout: 10000
+                });
+            } else {
+                alert('GPS를 지원하지 않는 기기입니다');
+            }
         });
 
         document.addEventListener('DOMContentLoaded', () => {
