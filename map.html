@@ -257,9 +257,7 @@
     <div id="map" style="position: absolute; top: 0; bottom: 0; width: 100%; height: 100vh;"></div>
 
     <!-- GPS 테스트 모드 버튼 (임시) -->
-    <button id="gpsModeBtn"
         style="position:fixed; top:70px; right:12px; z-index:1000; background:white; border:2px solid #333; padding:6px 10px; font-size:12px; border-radius:4px; opacity:0.9;">
-        모드: 스마트
     </button>
 
     <!-- 현재 위치 버튼 -->
@@ -571,123 +569,125 @@
                 }
             });
         }
-
         // ========================================
-        // 📍 실시간 GPS 트래킹 (스마트 모드: 터치 시 일시정지)
+        // 📍 초고속 반응 GPS 트래킹
         // ========================================
         let gpsMarker = null;
         let watchId = null;
         let isTracking = false;
-        let isUserInteracting = false;
+        let isUserInteracting = false; 
 
         // 지도 조작 감지
         function setupInteractionListeners() {
-            if (!map) return;
-            const setInteracting = () => { isUserInteracting = true; };
-            const unsetInteracting = () => { setTimeout(() => isUserInteracting = false, 2000); };
-
-            map.on('movestart', setInteracting);
-            map.on('zoomstart', setInteracting);
-            map.on('dragstart', setInteracting);
-
-            map.on('moveend', unsetInteracting);
-            map.on('zoomend', unsetInteracting);
-            map.on('dragend', unsetInteracting);
+            if(!map) return;
+            const pause = () => { isUserInteracting = true; };
+            const resume = () => { setTimeout(() => isUserInteracting = false, 2000); };
+            map.on('movestart', pause); map.on('zoomstart', pause); map.on('dragstart', pause);
+            map.on('moveend', resume); map.on('zoomend', resume); map.on('dragend', resume);
         }
 
         document.getElementById('locationBtn').addEventListener('click', toggleTracking);
 
         function toggleTracking() {
             const btn = document.getElementById('locationBtn');
-
-            if (isTracking) {
-                if (watchId !== null) {
-                    navigator.geolocation.clearWatch(watchId);
-                    watchId = null;
+            
+            // 1. 이미 파란 점(GPS 마커)이 있다면? -> 0초 대기, 즉시 이동!
+            if (gpsMarker) {
+                const center = map.getCenter();
+                const markerLL = gpsMarker.getLatLng();
+                const dist = map.distance(center, markerLL);
+                
+                // 중심에서 5m 이상 벗어나 있으면 -> "즉시 이동" (트래킹 안 끔)
+                if (dist > 5) {
+                    // 현재 회전각 유지하면서 이동
+                    const bearing = (map.getBearing && typeof map.getBearing === 'function') ? map.getBearing() : 0;
+                    map.setView(markerLL, 17, {
+                        animate: true, 
+                        duration: 0.3, // 0.3초만에 슝!
+                        easeLinearity: 0.25,
+                        bearing: bearing
+                    });
+                    
+                    // 만약 꺼져있던 상태라면 켜기
+                    if (!isTracking) {
+                         isTracking = true;
+                         btn.classList.add('active');
+                         startWatch();
+                    }
+                    return; // 함수 종료 (GPS 다시 안 부름)
                 }
-                isTracking = false;
+            }
+
+            // 2. 트래킹 상태 토글 (중심에 있을 때만 꺼짐)
+            if (isTracking) {
+                stopWatch();
                 btn.classList.remove('active');
             } else {
-                if (!navigator.geolocation) {
-                    alert('GPS를 지원하지 않습니다');
-                    return;
-                }
-
-                isTracking = true;
+                startWatch();
                 btn.classList.add('active');
+            }
+        }
 
-                setupInteractionListeners();
-
-                navigator.geolocation.getCurrentPosition(updatePosition, null, { enableHighAccuracy: true });
+        function startWatch() {
+            if (!navigator.geolocation) { alert('GPS 불가'); return; }
+            isTracking = true;
+            setupInteractionListeners();
+            
+            // 초기 위치 잡기 (이미 마커 있으면 생략 가능하지만 정확도 위해 호출)
+            if (!gpsMarker) {
+                navigator.geolocation.getCurrentPosition(updatePosition, null, {enableHighAccuracy: true, maximumAge: 0});
+            }
+            
+            if (watchId === null) {
                 watchId = navigator.geolocation.watchPosition(updatePosition, console.error, {
-                    enableHighAccuracy: true, maximumAge: 0, timeout: 5000
+                    enableHighAccuracy: true, 
+                    maximumAge: 0, 
+                    timeout: 5000
                 });
             }
+        }
+
+        function stopWatch() {
+            if (watchId !== null) {
+                navigator.geolocation.clearWatch(watchId);
+                watchId = null;
+            }
+            isTracking = false;
         }
 
         function updatePosition(pos) {
             const lat = pos.coords.latitude;
             const lng = pos.coords.longitude;
-
+            
             if (!map.getPane('gpsPane')) {
-                map.createPane('gpsPane');
-                map.getPane('gpsPane').style.zIndex = 2000;
+                map.createPane('gpsPane'); map.getPane('gpsPane').style.zIndex = 2000;
                 map.getPane('gpsPane').style.pointerEvents = 'none';
             }
 
             if (!gpsMarker) {
-                const gpsIcon = L.divIcon({
-                    className: 'gps-pulse-icon',
-                    html: '<div class="gps-dot"></div><div class="gps-pulse"></div>',
-                    iconSize: [20, 20],
-                    iconAnchor: [10, 10]
-                });
-                gpsMarker = L.marker([lat, lng], {
-                    icon: gpsIcon, pane: 'gpsPane'
-                }).addTo(map);
+                const icon = L.divIcon({className: 'gps-pulse-icon', html: '<div class="gps-dot"></div><div class="gps-pulse"></div>', iconSize: [20, 20]});
+                gpsMarker = L.marker([lat, lng], {icon: icon, pane: 'gpsPane'}).addTo(map);
             } else {
                 gpsMarker.setLatLng([lat, lng]);
             }
 
-            if (isTracking) {
-                if (isUserInteracting) return;
-
-                const currentZoom = map.getZoom();
-                const targetZoom = currentZoom < 16 ? 17 : currentZoom;
-                const currentBearing = (map.getBearing && typeof map.getBearing === 'function') ? map.getBearing() : 0;
-
-                map.setView([lat, lng], targetZoom, {
-                    bearing: currentBearing,
-                    animate: true,
-                    duration: 0.1,
-                    easeLinearity: 0.25
-                });
+            if (isTracking && !isUserInteracting) {
+                const bearing = (map.getBearing && typeof map.getBearing === 'function') ? map.getBearing() : 0;
+                map.setView([lat, lng], 17, {bearing: bearing, animate: true, duration: 0.2});
             }
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            initMap();
-
-            document.getElementById('layerToggleBtn').addEventListener('click', () => {
-                document.getElementById('layerFilter').classList.toggle('open');
-            });
-            map.on('click', () => {
-                document.getElementById('layerFilter').classList.remove('open');
-            });
-
+            initMap(); 
+            document.getElementById('layerToggleBtn').addEventListener('click', () => document.getElementById('layerFilter').classList.toggle('open'));
+            map.on('click', () => document.getElementById('layerFilter').classList.remove('open'));
+            
             const relBtn = document.createElement('button');
-            relBtn.id = 'relocateBtn';
-            relBtn.className = 'location-btn';
-            relBtn.style.bottom = '140px';
-            relBtn.style.fontSize = '12px';
-            relBtn.style.fontWeight = 'bold';
-            relBtn.style.background = '#FF5252';
-            relBtn.style.color = 'white';
-            relBtn.textContent = '지번정렬';
+            relBtn.textContent = '지번정렬'; relBtn.className = 'location-btn';
+            relBtn.style.bottom = '140px'; relBtn.style.fontSize = '12px'; relBtn.style.background = '#FF5252'; relBtn.style.color = 'white';
             relBtn.onclick = relocateAllMarkers;
             document.body.appendChild(relBtn);
         });
     </script>
 </body>
-
 </html>
