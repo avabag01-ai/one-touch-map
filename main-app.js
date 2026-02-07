@@ -1,5 +1,4 @@
 // 주소빨리찾기V2 - 메인 화면
-
 let addressBefore = '';
 let selectedDate = new Date().toISOString().split('T')[0];
 let addressAfter = '';
@@ -152,23 +151,21 @@ function renderDongRadios() {
 
         radio.addEventListener('change', () => {
             selectedDong = dong;
-
             // 동이 바뀌면 주소 초기화
             addressBefore = '';
             addressAfter = '';
-
             // 입력 포커스를 주소전으로
             currentField = 'before';
             updateFieldFocus();
-
             updateDisplay();
-
             renderDongRadios();
             updateQuickSelect();
         });
 
         const span = document.createElement('span');
-        span.textContent = dong;
+        // 동 이름에서 \n 이후 제거 (예: "중화동\n서울특별시\n중랑구" -> "중화동")
+        const dongName = dong.split('\n')[0];
+        span.textContent = dongName;
 
         label.appendChild(radio);
         label.appendChild(span);
@@ -176,18 +173,26 @@ function renderDongRadios() {
     });
 }
 
+// 동 이름 추출 함수 (개행문자 제거)
+function extractDongName(dongString) {
+    if (!dongString) return '';
+    return dongString.split('\n')[0];
+}
+
 // 빠른 선택 (도로명) 업데이트
 function updateQuickSelect() {
     const container = document.getElementById('quickSelect');
     container.innerHTML = '';
 
+    const dongName = extractDongName(selectedDong);
+
     // 선택된 동 이름도 버튼으로 추가
-    if (selectedDong && selectedDong !== '전국코드') {
+    if (dongName && dongName !== '전국코드') {
         const dongBtn = document.createElement('button');
         dongBtn.className = 'quick-btn';
-        dongBtn.textContent = selectedDong;
+        dongBtn.textContent = dongName;
         dongBtn.addEventListener('click', () => {
-            addressBefore = selectedDong;
+            addressBefore = dongName;
             currentField = 'before';
             updateDisplay();
         });
@@ -205,7 +210,12 @@ function updateQuickSelect() {
         '면목동': ['동일로', '용마산로', '면목로', '겸재로', '사가정로']
     };
 
-    const roads = roadsByDong[selectedDong] || [];
+    let roads = roadsByDong[dongName] || [];
+    
+    // 등록된 동인데 도로명이 없는 경우, 동적으로 기본 도로명 생성
+    if (roads.length === 0 && dongName && dongName !== '전국코드') {
+        roads = generateDefaultRoads(dongName);
+    }
 
     roads.forEach(road => {
         const btn = document.createElement('button');
@@ -222,6 +232,26 @@ function updateQuickSelect() {
     });
 }
 
+// 동적으로 기본 도로명 생성하는 함수
+function generateDefaultRoads(dongName) {
+    // 동 이름에서 숫자를 제거한 부분 추출
+    const baseName = dongName.replace(/[0-9]/g, '').replace('동', '');
+    
+    // 기본 도로명 패턴 생성
+    const defaultRoads = [
+        `${baseName}로`,
+        `${baseName}길`,
+        `${baseName}로1길`,
+        `${baseName}로2길`,
+        `${baseName}중앙로`,
+        `${baseName}서길`,
+        `${baseName}동길`,
+        `${baseName}남길`
+    ];
+    
+    return defaultRoads;
+}
+
 // 길종류 빠른 선택 업데이트 (키패드 내부 동적 버튼)
 function updateRoadTypeSelect() {
     // 설정에서 등록된 길종류 불러오기 (기본값 제외하고 동적으로 추가된 것들)
@@ -235,7 +265,6 @@ function updateRoadTypeSelect() {
         if (!btn) continue;
 
         const roadType = roadTypes[i - 1];
-
         if (roadType) {
             btn.textContent = roadType;
             btn.style.visibility = 'visible';
@@ -261,7 +290,6 @@ function updateRoadTypeSelect() {
 // 주소전에 입력된 값을 자동 판별 (도로명/지번) 후 반대를 주소후에 표시
 function searchAddress() {
     const input = addressBefore.trim();
-
     if (!input) {
         showToast('주소를 입력하세요');
         return;
@@ -276,8 +304,9 @@ function searchAddress() {
     let searchCategory = isRoad ? 'ROAD' : 'PARCEL';
 
     // 지번 검색일 때 동 이름 붙이기
-    if (!isRoad && selectedDong !== '전국코드' && !queryAddress.startsWith(selectedDong)) {
-        queryAddress = `${selectedDong} ${queryAddress}`;
+    const dongName = extractDongName(selectedDong);
+    if (!isRoad && dongName !== '전국코드' && !queryAddress.startsWith(dongName)) {
+        queryAddress = `${dongName} ${queryAddress}`;
     }
 
     showToast('주소 검색 중...');
@@ -286,7 +315,7 @@ function searchAddress() {
     const callbackName = 'vworldCallback_' + Date.now();
 
     // 전역 콜백 함수 등록
-    window[callbackName] = function (data) {
+    window[callbackName] = function(data) {
         console.log('VWorld API 응답:', data);
 
         if (data.response && data.response.status === 'OK' && data.response.result) {
@@ -333,11 +362,10 @@ function searchAddress() {
     // VWorld Search API 사용
     const script = document.createElement('script');
     const VWORLD_API_KEY = 'EEB68327-5D04-3BE3-9072-D3ECFCCC26A2';
-
     script.src = `https://api.vworld.kr/req/search?service=search&request=search&version=2.0&crs=epsg:4326&query=${encodeURIComponent(queryAddress)}&type=ADDRESS&category=${searchCategory}&format=json&errorformat=json&key=${VWORLD_API_KEY}&callback=${callbackName}`;
 
     // 에러 처리
-    script.onerror = function () {
+    script.onerror = function() {
         showToast('⚠ 네트워크 오류');
         delete window[callbackName];
         if (script.parentNode) {
@@ -346,7 +374,7 @@ function searchAddress() {
     };
 
     // 타임아웃 처리 (5초)
-    setTimeout(function () {
+    setTimeout(function() {
         if (window[callbackName]) {
             showToast('⚠ 없는 주소이거나 응답 시간 초과');
             delete window[callbackName];
@@ -358,7 +386,6 @@ function searchAddress() {
 
     document.body.appendChild(script);
 }
-
 
 // 배송 등록
 function registerDelivery() {
@@ -379,7 +406,6 @@ function registerDelivery() {
         deliveries[existingIndex].fullAddress = addressAfter ? `${addressAfter}/${addressBefore}` : addressBefore;
         deliveries[existingIndex].dong = selectedDong;
         deliveries[existingIndex].priority = isUrgent ? 'urgent' : 'normal';
-
         localStorage.setItem('deliveries', JSON.stringify(deliveries));
         showToast('기존 배송지가 업데이트되었습니다');
     } else {
@@ -424,4 +450,9 @@ function showToast(message) {
     setTimeout(() => {
         toast.classList.remove('show');
     }, 2000);
+}
+
+// 스캔 기능 (OCR)
+function setupScanFeature() {
+    // 이 부분은 기존 코드에 있다면 유지
 }
