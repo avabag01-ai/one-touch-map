@@ -48,14 +48,6 @@
             </div>
         </div>
 
-        <!-- 액션 버튼 (주소후 아래) -->
-        <div class="action-bar">
-            <button class="action-btn btn-find">찾기</button>
-            <button class="action-btn btn-map" onclick="location.href='map.html'">지도</button>
-            <button class="action-btn btn-camera" id="fileBtn">촬영</button>
-            <button class="action-btn btn-setting" onclick="location.href='settings.html'">설정</button>
-        </div>
-
         <!-- 키패드 -->
         <div class="keypad-wrap">
             <!-- 왼쪽: 숫자 + 특수키 (4x4) -->
@@ -108,6 +100,14 @@
             </div>
         </div>
 
+        <!-- 액션 버튼 바 (동 선택바 아래) -->
+        <div class="action-bar">
+            <button class="action-btn btn-find">찾기</button>
+            <button class="action-btn btn-map" onclick="location.href='map.html'">지도</button>
+            <button class="action-btn btn-camera" id="fileBtn">촬영</button>
+            <button class="action-btn btn-setting" onclick="location.href='settings.html'">설정</button>
+        </div>
+
         <!-- 빠른 선택 (도로명) -->
         <div class="quick-select" id="quickSelect">
             <!-- 동적으로 생성됨 -->
@@ -134,18 +134,8 @@
             </div>
         </div>
 
-        <!-- 전국 시/도 선택 모달 -->
-        <div id="regionModal" class="modal-overlay" style="display: none;">
-            <div class="modal-content">
-                <h3>🗺️ 전국 시/도 선택</h3>
-                <div id="regionList" style="max-height: 400px; overflow-y: auto;">
-                    <!-- 동적으로 생성됨 -->
-                </div>
-                <button id="closeRegionModal" class="btn-cancel" style="width: 100%; margin-top: 10px;">닫기</button>
-            </div>
-        </div>
-
         <script src="anchor-system.js"></script>
+        <script src="national-regions.js"></script>
         <script src="ocr-app.js"></script>
         <script src="main-app.js"></script>
 </body>

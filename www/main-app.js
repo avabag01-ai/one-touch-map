@@ -1,5 +1,4 @@
 // 주소빨리찾기V2 - 메인 화면
-
 let addressBefore = '';
 let selectedDate = new Date().toISOString().split('T')[0];
 let addressAfter = '';
@@ -130,49 +129,6 @@ function updateFieldFocus() {
     }
 }
 
-// 전국 시/도 목록
-const nationwideRegions = [
-    '서울특별시', '부산광역시', '대구광역시', '인천광역시', '광주광역시', '대전광역시',
-    '울산광역시', '세종특별자치시', '경기도', '강원도', '충청북도', '충청남도',
-    '전라북도', '전라남도', '경상북도', '경상남도', '제주특별자치도'
-];
-
-// 전국모드 데이터
-const regionData = {
-    '서울': {
-        '강남구': ['역삼동', '개포동', '청담동', '삼성동', '대치동'],
-        '강동구': ['천호동', '성내동', '길동', '둔촌동', '암사동'],
-        '강북구': ['미아동', '번동', '수유동'],
-        '강서구': ['염창동', '등촌동', '화곡동', '가양동', '마곡동'],
-        '관악구': ['봉천동', '신림동'],
-        '광진구': ['중곡동', '능동', '구의동', '광장동'],
-        '구로구': ['구로동', '신도림동', '개봉동', '오류동', '고척동'],
-        '금천구': ['가산동', '독산동', '시흥동'],
-        '노원구': ['월계동', '공릉동', '하계동', '상계동', '중계동'],
-        '도봉구': ['쌍문동', '방학동', '도봉동', '창동'],
-        '동대문구': ['용두동', '제기동', '전농동', '답십리동', '장안동', '이문동', '회기동', '휘경동'],
-        '동작구': ['노량진동', '상도동', '흑석동', '사당동', '대방동'],
-        '마포구': ['아현동', '공덕동', '도화동', '용강동', '대흥동', '염리동', '신수동', '서강동', '서교동', '합정동', '망원동', '연남동', '성산동', '상암동'],
-        '서대문구': ['충정로', '천연동', '신촌동', '연희동', '홍제동', '홍은동', '북아현동', '북가좌동', '남가좌동'],
-        '서초구': ['서초동', '잠원동', '반포동', '방배동', '양재동', '우면동', '내곡동'],
-        '성동구': ['왕십리', '마장동', '사근동', '행당동', '응봉동', '금호동', '옥수동', '성수동', '송정동', '용답동'],
-        '성북구': ['성북동', '삼선동', '동선동', '돈암동', '안암동', '보문동', '정릉동', '길음동', '종암동', '하월곡동', '상월곡동', '장위동', '석관동'],
-        '송파구': ['풍납동', '거여동', '마천동', '방이동', '오금동', '송파동', '석촌동', '삼전동', '가락동', '문정동', '장지동'],
-        '양천구': ['신정동', '목동', '신월동'],
-        '영등포구': ['영등포동', '여의도동', '당산동', '도림동', '문래동', '양평동', '신길동', '대림동'],
-        '용산구': ['후암동', '용산동', '남영동', '청파동', '원효로', '효창동', '도원동', '서빙고동', '한남동', '이촌동', '이태원동', '보광동'],
-        '은평구': ['수색동', '녹번동', '불광동', '갈현동', '구산동', '대조동', '응암동', '역촌동', '신사동', '증산동'],
-        '종로구': ['청운효자동', '사직동', '삼청동', '부암동', '평창동', '무악동', '교남동', '가회동', '종로1.2.3.4가동', '종로5.6가동', '이화동', '혜화동', '창신동', '숭인동'],
-        '중구': ['소공동', '회현동', '명동', '필동', '장충동', '광희동', '을지로동', '신당동', '다산동', '약수동', '청구동', '황학동', '중림동'],
-        '중랑구': ['면목동', '상봉동', '중화동', '묵동', '망우동', '신내동']
-    },
-    '경기': {
-        '수원시': ['장안구', '권선구', '팔달구', '영통구'],
-        '고양시': ['덕양구', '일산동구', '일산서구'],
-        '용인시': ['처인구', '기흥구', '수지구']
-    }
-};
-
 // 동 라디오 버튼 렌더링
 function renderDongRadios() {
     const container = document.getElementById('dongRadios');
@@ -182,27 +138,6 @@ function renderDongRadios() {
 
     settings.dongs.forEach((dong, index) => {
         if (!dong) return;
-
-        // 전국코드인 경우 전국모드 버튼으로 표시
-        if (dong === '전국코드') {
-            const btn = document.createElement('button');
-            btn.className = 'dong-radio region-mode-btn';
-            btn.textContent = '전국모드';
-            btn.style.background = '#4CAF50';
-            btn.style.color = 'white';
-            btn.style.fontWeight = 'bold';
-            btn.style.border = 'none';
-            btn.style.borderRadius = '6px';
-            btn.style.padding = '8px 12px';
-            btn.style.cursor = 'pointer';
-
-            btn.addEventListener('click', () => {
-                openRegionSelector();
-            });
-
-            container.appendChild(btn);
-            return;
-        }
 
         const label = document.createElement('label');
         label.className = 'dong-radio';
@@ -215,26 +150,18 @@ function renderDongRadios() {
         radio.checked = dong === selectedDong;
 
         radio.addEventListener('change', () => {
-            // 같은 동 다시 클릭하면 전국코드로 초기화
-            if (selectedDong === dong && dong !== '전국코드') {
-                selectedDong = '전국코드';
-                addressBefore = '';
-                addressAfter = '';
-                updateDongDisplay('');
-            } else {
-                selectedDong = dong;
-
-                // 동 이름 표시 및 주소전에 동 이름 자동 입력
-                if (dong !== '전국코드') {
-                    updateDongDisplay(dong);
-                    addressBefore = dong;
-                } else {
-                    updateDongDisplay('');
-                    addressBefore = '';
-                }
-                addressAfter = '';
+            selectedDong = dong;
+            
+            // 전국코드 클릭 시 지역 선택 모달 표시
+            if (dong === '전국코드') {
+                showNationalRegionModal();
+                return;
             }
-
+            
+            // 동이 바뀌면 주소 초기화
+            addressBefore = '';
+            addressAfter = '';
+            // 입력 포커스를 주소전으로
             currentField = 'before';
             updateFieldFocus();
             updateDisplay();
@@ -243,7 +170,9 @@ function renderDongRadios() {
         });
 
         const span = document.createElement('span');
-        span.textContent = dong;
+        // 동 이름에서 \n 이후 제거 (예: "중화동\n서울특별시\n중랑구" -> "중화동")
+        const dongName = dong.split('\n')[0];
+        span.textContent = dongName;
 
         label.appendChild(radio);
         label.appendChild(span);
@@ -251,129 +180,10 @@ function renderDongRadios() {
     });
 }
 
-// 전국 지역 선택기 열기
-function openRegionSelector() {
-    const modal = document.getElementById('regionModal');
-    const regionList = document.getElementById('regionList');
-
-    // 1단계: 시/도 선택
-    regionList.innerHTML = '<h4 style="margin: 10px 0;">시/도를 선택하세요</h4>';
-
-    nationwideRegions.forEach(region => {
-        const btn = document.createElement('button');
-        btn.textContent = region;
-        btn.style.cssText = 'width: 100%; padding: 15px; margin: 5px 0; font-size: 16px; background: #2196F3; color: white; border: none; border-radius: 8px; cursor: pointer;';
-
-        btn.addEventListener('click', () => {
-            // 간단한 시/도는 바로 선택
-            if (region.includes('세종') || region.includes('제주')) {
-                selectedDong = region;
-                updateDongDisplay(region);
-                addressBefore = '';
-                addressAfter = '';
-                updateDisplay();
-                modal.style.display = 'none';
-                showToast(`${region} 선택됨`);
-                return;
-            }
-
-            // 서울/경기는 2단계로
-            const shortName = region.replace('특별시', '').replace('광역시', '').replace('도', '').replace('특별자치시', '').replace('특별자치도', '');
-            if (regionData[shortName]) {
-                showDistrictSelector(shortName, region);
-            } else {
-                selectedDong = region;
-                updateDongDisplay(region);
-                addressBefore = '';
-                addressAfter = '';
-                updateDisplay();
-                modal.style.display = 'none';
-                showToast(`${region} 선택됨`);
-            }
-        });
-
-        regionList.appendChild(btn);
-    });
-
-    modal.style.display = 'flex';
-}
-
-// 2단계: 시/군/구 선택
-function showDistrictSelector(city, fullName) {
-    const regionList = document.getElementById('regionList');
-    const districts = Object.keys(regionData[city]);
-
-    regionList.innerHTML = `<h4 style="margin: 10px 0;">${fullName} - 구/시를 선택하세요</h4>`;
-
-    const backBtn = document.createElement('button');
-    backBtn.textContent = '← 뒤로';
-    backBtn.style.cssText = 'width: 100%; padding: 10px; margin: 5px 0; background: #666; color: white; border: none; border-radius: 8px;';
-    backBtn.addEventListener('click', openRegionSelector);
-    regionList.appendChild(backBtn);
-
-    districts.forEach(district => {
-        const btn = document.createElement('button');
-        btn.textContent = district;
-        btn.style.cssText = 'width: 100%; padding: 15px; margin: 5px 0; font-size: 16px; background: #2196F3; color: white; border: none; border-radius: 8px; cursor: pointer;';
-
-        btn.addEventListener('click', () => {
-            // 선택된 구의 동 목록을 settings.dongs에 저장
-            const dongs = regionData[city][district];
-            settings.dongs = ['전국코드', ...dongs];
-            localStorage.setItem('deliverySettings', JSON.stringify(settings));
-
-            // 첫 번째 동 선택
-            selectedDong = dongs[0];
-            updateDongDisplay(`${district} ${dongs[0]}`);
-
-            // 주소전에 동 이름 자동 입력
-            addressBefore = dongs[0];
-            addressAfter = '';
-
-            // 동 라디오 버튼 다시 렌더링
-            renderDongRadios();
-            updateQuickSelect();
-
-            // 모달 닫기
-            document.getElementById('regionModal').style.display = 'none';
-            showToast(`${district} 설정 완료 - ${dongs.length}개 동`);
-
-            updateDisplay();
-        });
-
-        regionList.appendChild(btn);
-    });
-}
-
-// 모달 닫기
-// 모달 닫기 이벤트 리스너 등록
-if (document.getElementById('closeRegionModal')) {
-    document.getElementById('closeRegionModal').addEventListener('click', () => {
-        document.getElementById('regionModal').style.display = 'none';
-    });
-}
-
-// 동 이름 헤더에 표시
-function updateDongDisplay(dongName) {
-    const header = document.querySelector('.header-title');
-    if (!header) return;
-
-    let dongSpan = header.querySelector('.dong-display');
-    if (!dongSpan) {
-        dongSpan = document.createElement('span');
-        dongSpan.className = 'dong-display';
-        dongSpan.style.marginLeft = '8px';
-        dongSpan.style.color = '#2196F3';
-        dongSpan.style.fontWeight = 'bold';
-        header.appendChild(dongSpan);
-    }
-
-    if (dongName) {
-        dongSpan.textContent = `[${dongName}]`;
-        dongSpan.style.display = 'inline';
-    } else {
-        dongSpan.style.display = 'none';
-    }
+// 동 이름 추출 함수 (개행문자 제거)
+function extractDongName(dongString) {
+    if (!dongString) return '';
+    return dongString.split('\n')[0];
 }
 
 // 빠른 선택 (도로명) 업데이트
@@ -381,13 +191,15 @@ function updateQuickSelect() {
     const container = document.getElementById('quickSelect');
     container.innerHTML = '';
 
+    const dongName = extractDongName(selectedDong);
+
     // 선택된 동 이름도 버튼으로 추가
-    if (selectedDong && selectedDong !== '전국코드') {
+    if (dongName && dongName !== '전국코드') {
         const dongBtn = document.createElement('button');
         dongBtn.className = 'quick-btn';
-        dongBtn.textContent = selectedDong;
+        dongBtn.textContent = dongName;
         dongBtn.addEventListener('click', () => {
-            addressBefore = selectedDong;
+            addressBefore = dongName;
             currentField = 'before';
             updateDisplay();
         });
@@ -405,7 +217,12 @@ function updateQuickSelect() {
         '면목동': ['동일로', '용마산로', '면목로', '겸재로', '사가정로']
     };
 
-    const roads = roadsByDong[selectedDong] || [];
+    let roads = roadsByDong[dongName] || [];
+    
+    // 등록된 동인데 도로명이 없는 경우, 동적으로 기본 도로명 생성
+    if (roads.length === 0 && dongName && dongName !== '전국코드') {
+        roads = generateDefaultRoads(dongName);
+    }
 
     roads.forEach(road => {
         const btn = document.createElement('button');
@@ -422,6 +239,26 @@ function updateQuickSelect() {
     });
 }
 
+// 동적으로 기본 도로명 생성하는 함수
+function generateDefaultRoads(dongName) {
+    // 동 이름에서 숫자를 제거한 부분 추출
+    const baseName = dongName.replace(/[0-9]/g, '').replace('동', '');
+    
+    // 기본 도로명 패턴 생성
+    const defaultRoads = [
+        `${baseName}로`,
+        `${baseName}길`,
+        `${baseName}로1길`,
+        `${baseName}로2길`,
+        `${baseName}중앙로`,
+        `${baseName}서길`,
+        `${baseName}동길`,
+        `${baseName}남길`
+    ];
+    
+    return defaultRoads;
+}
+
 // 길종류 빠른 선택 업데이트 (키패드 내부 동적 버튼)
 function updateRoadTypeSelect() {
     // 설정에서 등록된 길종류 불러오기 (기본값 제외하고 동적으로 추가된 것들)
@@ -435,7 +272,6 @@ function updateRoadTypeSelect() {
         if (!btn) continue;
 
         const roadType = roadTypes[i - 1];
-
         if (roadType) {
             btn.textContent = roadType;
             btn.style.visibility = 'visible';
@@ -461,7 +297,6 @@ function updateRoadTypeSelect() {
 // 주소전에 입력된 값을 자동 판별 (도로명/지번) 후 반대를 주소후에 표시
 function searchAddress() {
     const input = addressBefore.trim();
-
     if (!input) {
         showToast('주소를 입력하세요');
         return;
@@ -476,8 +311,9 @@ function searchAddress() {
     let searchCategory = isRoad ? 'ROAD' : 'PARCEL';
 
     // 지번 검색일 때 동 이름 붙이기
-    if (!isRoad && selectedDong !== '전국코드' && !queryAddress.startsWith(selectedDong)) {
-        queryAddress = `${selectedDong} ${queryAddress}`;
+    const dongName = extractDongName(selectedDong);
+    if (!isRoad && dongName !== '전국코드' && !queryAddress.startsWith(dongName)) {
+        queryAddress = `${dongName} ${queryAddress}`;
     }
 
     showToast('주소 검색 중...');
@@ -486,7 +322,7 @@ function searchAddress() {
     const callbackName = 'vworldCallback_' + Date.now();
 
     // 전역 콜백 함수 등록
-    window[callbackName] = function (data) {
+    window[callbackName] = function(data) {
         console.log('VWorld API 응답:', data);
 
         if (data.response && data.response.status === 'OK' && data.response.result) {
@@ -533,11 +369,10 @@ function searchAddress() {
     // VWorld Search API 사용
     const script = document.createElement('script');
     const VWORLD_API_KEY = 'EEB68327-5D04-3BE3-9072-D3ECFCCC26A2';
-
     script.src = `https://api.vworld.kr/req/search?service=search&request=search&version=2.0&crs=epsg:4326&query=${encodeURIComponent(queryAddress)}&type=ADDRESS&category=${searchCategory}&format=json&errorformat=json&key=${VWORLD_API_KEY}&callback=${callbackName}`;
 
     // 에러 처리
-    script.onerror = function () {
+    script.onerror = function() {
         showToast('⚠ 네트워크 오류');
         delete window[callbackName];
         if (script.parentNode) {
@@ -546,7 +381,7 @@ function searchAddress() {
     };
 
     // 타임아웃 처리 (5초)
-    setTimeout(function () {
+    setTimeout(function() {
         if (window[callbackName]) {
             showToast('⚠ 없는 주소이거나 응답 시간 초과');
             delete window[callbackName];
@@ -558,7 +393,6 @@ function searchAddress() {
 
     document.body.appendChild(script);
 }
-
 
 // 배송 등록
 function registerDelivery() {
@@ -579,7 +413,6 @@ function registerDelivery() {
         deliveries[existingIndex].fullAddress = addressAfter ? `${addressAfter}/${addressBefore}` : addressBefore;
         deliveries[existingIndex].dong = selectedDong;
         deliveries[existingIndex].priority = isUrgent ? 'urgent' : 'normal';
-
         localStorage.setItem('deliveries', JSON.stringify(deliveries));
         showToast('기존 배송지가 업데이트되었습니다');
     } else {
@@ -624,4 +457,138 @@ function showToast(message) {
     setTimeout(() => {
         toast.classList.remove('show');
     }, 2000);
+}
+
+// 스캔 기능 (OCR)
+function setupScanFeature() {
+    // 이 부분은 기존 코드에 있다면 유지
+}
+
+// === 전국모드 기능 ===
+let nationalModalStep = 'sido'; // 'sido', 'gugun', 'dong'
+let selectedSido = '';
+let selectedGugun = '';
+
+function showNationalRegionModal() {
+    // 모달이 없으면 생성
+    let modal = document.getElementById('nationalModal');
+    if (!modal) {
+        modal = createNationalModal();
+    }
+    
+    // 초기화
+    nationalModalStep = 'sido';
+    selectedSido = '';
+    selectedGugun = '';
+    
+    // 시/도 목록 표시
+    showSidoList();
+    modal.style.display = 'flex';
+}
+
+function createNationalModal() {
+    const modal = document.createElement('div');
+    modal.id = 'nationalModal';
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+        <div class="modal-content national-modal">
+            <div class="modal-header">
+                <button id="nationalBackBtn" class="btn-back" style="display:none;">← 뒤로</button>
+                <h3 id="nationalModalTitle">지역 선택</h3>
+                <button id="nationalCloseBtn" class="btn-close">✕</button>
+            </div>
+            <div id="nationalModalBody" class="national-modal-body">
+                <!-- 동적으로 채워짐 -->
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // 닫기 버튼
+    modal.querySelector('#nationalCloseBtn').addEventListener('click', () => {
+        modal.style.display = 'none';
+        // 전국코드 선택 해제
+        selectedDong = settings.dongs[1] || '중화동';
+        renderDongRadios();
+    });
+    
+    // 뒤로 버튼
+    modal.querySelector('#nationalBackBtn').addEventListener('click', () => {
+        if (nationalModalStep === 'gugun') {
+            nationalModalStep = 'sido';
+            selectedSido = '';
+            showSidoList();
+        }
+    });
+    
+    return modal;
+}
+
+function showSidoList() {
+    const modal = document.getElementById('nationalModal');
+    const title = modal.querySelector('#nationalModalTitle');
+    const body = modal.querySelector('#nationalModalBody');
+    const backBtn = modal.querySelector('#nationalBackBtn');
+    
+    title.textContent = '시/도 선택';
+    backBtn.style.display = 'none';
+    
+    const sidoList = getSidoList();
+    body.innerHTML = sidoList.map(sido => `
+        <button class="region-btn" onclick="selectSido('${sido}')">${sido}</button>
+    `).join('');
+}
+
+function selectSido(sido) {
+    selectedSido = sido;
+    nationalModalStep = 'gugun';
+    showGugunList(sido);
+}
+
+function showGugunList(sido) {
+    const modal = document.getElementById('nationalModal');
+    const title = modal.querySelector('#nationalModalTitle');
+    const body = modal.querySelector('#nationalModalBody');
+    const backBtn = modal.querySelector('#nationalBackBtn');
+    
+    title.textContent = `${sido} > 구/군 선택`;
+    backBtn.style.display = 'inline-block';
+    
+    const gugunList = getGugunList(sido);
+    body.innerHTML = gugunList.map(gugun => `
+        <button class="region-btn" onclick="selectGugun('${gugun}')">${gugun}</button>
+    `).join('');
+}
+
+function selectGugun(gugun) {
+    selectedGugun = gugun;
+    
+    // 모달 닫기
+    document.getElementById('nationalModal').style.display = 'none';
+    
+    // 해당 지역의 동 목록을 가져와서 설정에 임시 저장
+    const dongList = getDongList(selectedSido, gugun);
+    
+    // 전국코드 유지 + 선택한 지역 동들 추가
+    const originalFirstDong = settings.dongs[0];
+    settings.dongs = [originalFirstDong, ...dongList.map(dong => `${dong}\n${selectedSido}\n${gugun}`)];
+    
+    // 첫 번째 동 자동 선택
+    if (dongList.length > 0) {
+        selectedDong = settings.dongs[1];
+    }
+    
+    // 주소 초기화
+    addressBefore = '';
+    addressAfter = '';
+    currentField = 'before';
+    
+    // UI 업데이트
+    updateFieldFocus();
+    updateDisplay();
+    renderDongRadios();
+    updateQuickSelect();
+    
+    showToast(`${selectedSido} ${gugun} 동 목록 표시됨`);
 }
