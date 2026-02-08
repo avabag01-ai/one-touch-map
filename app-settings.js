@@ -7,6 +7,7 @@ let settings = {
     approvalNum: '미승인',
     dongs: ['전국코드', '중화동\n서울특별시\n중랑구', '묵동', '망우동', '신내동', '', '', '', '', ''],
     roads: ['ex : 안길', '번길', '가길', '나길', '다길'],
+    googleMapsKey: '',
     mapLine: 'notuse',
     arrivalSound: 'notuse',
     keyboardSound: 'notuse'
@@ -64,6 +65,9 @@ function loadSettings() {
         document.getElementById(`road${i}`).value = settings.roads[i - 1] || '';
     }
 
+    // Google Maps API 키
+    document.getElementById('googleMapsKey').value = settings.googleMapsKey || '';
+
     // 라디오 버튼
     document.querySelector(`input[name="mapLine"][value="${settings.mapLine}"]`).checked = true;
     document.querySelector(`input[name="arrivalSound"][value="${settings.arrivalSound}"]`).checked = true;
@@ -90,6 +94,9 @@ function saveSettings() {
     for (let i = 1; i <= 5; i++) {
         settings.roads.push(document.getElementById(`road${i}`).value);
     }
+
+    // Google Maps API 키
+    settings.googleMapsKey = document.getElementById('googleMapsKey').value.trim();
 
     // 라디오 버튼
     settings.mapLine = document.querySelector('input[name="mapLine"]:checked').value;

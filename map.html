@@ -251,6 +251,7 @@
         <button class="filter-btn" data-layer="4">L4</button>
         <button class="filter-btn" data-layer="5">L5</button>
         <button class="filter-btn" data-layer="0">미지정</button>
+        <button class="filter-btn" data-layer="google">구글</button>
     </div>
 
     <!-- 지도 - 전체화면 -->
@@ -262,6 +263,8 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <!-- Leaflet Rotate -->
     <script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js"></script>
+    <!-- Leaflet GoogleMutant 플러그인 -->
+    <script src="https://unpkg.com/leaflet.gridlayer.googlemutant@latest/dist/Leaflet.GoogleMutant.js"></script>
 
     <script src="android-back.js"></script>
     <script src="route-optimizer.js"></script>
@@ -272,6 +275,8 @@
         let deliveries = [];
         let markers = [];
         let currentLayer = 'all';
+        let googleLayer = null;
+        let currentBaseMap = 'vworld'; // 'vworld' or 'google'
 
         // 지도 초기화
         function initMap() {
@@ -316,6 +321,9 @@
                 }
             ).addTo(map);
 
+            // Google 지도 레이어 변수 초기화 (필요할 때 생성됨)
+            googleLayer = null;
+
             // 지도 클릭 시 역지오코딩 (신주소 조회)
             setupMapClickAddress();
 
@@ -327,10 +335,90 @@
                 btn.addEventListener('click', () => {
                     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
-                    currentLayer = btn.dataset.layer;
+                    const layer = btn.dataset.layer;
+                    
+                    if (layer === 'google') {
+                        // Google 지도로 전환
+                        switchToGoogleMap();
+                        // 마커 필터링은 변경하지 않음 (현재 레이어 유지)
+                    } else {
+                        // VWorld 지도로 전환
+                        switchToVWorldMap();
+                        // 마커 필터링 레이어 변경
+                        currentLayer = layer;
+                    }
                     displayMarkers();
                 });
             });
+        }
+
+        // 기본 지도 전환 함수
+        function switchToGoogleMap() {
+            // API 키 확인 (재확인)
+            if (!window.GOOGLE_MAPS_API_KEY || window.GOOGLE_MAPS_API_KEY.trim() === '') {
+                // localStorage에서 다시 확인
+                try {
+                    const settings = JSON.parse(localStorage.getItem('deliverySettings') || '{}');
+                    const apiKey = settings.googleMapsKey || '';
+                    window.GOOGLE_MAPS_API_KEY = apiKey;
+                    
+                    if (!apiKey || apiKey.trim() === '') {
+                        const confirmMove = confirm('Google Maps API 키가 설정되지 않았습니다.\n설정 페이지로 이동하여 키를 입력하시겠습니까?');
+                        if (confirmMove) {
+                            window.location.href = 'settings.html';
+                        }
+                        return;
+                    }
+                } catch (e) {
+                    console.error('API 키 확인 실패:', e);
+                    alert('Google Maps API 키를 확인하는 중 오류가 발생했습니다.');
+                    return;
+                }
+            }
+            
+            // 레이어 생성 (아직 생성되지 않았을 경우)
+            if (!googleLayer) {
+                if (window.L && window.L.gridLayer && window.L.gridLayer.googleMutant) {
+                    try {
+                        googleLayer = L.gridLayer.googleMutant({
+                            type: 'roadmap' // 'roadmap', 'satellite', 'hybrid', 'terrain'
+                        });
+                    } catch (e) {
+                        console.error('Google Maps 레이어 생성 실패:', e);
+                        alert('Google Maps 레이어를 생성할 수 없습니다. API 키를 확인해주세요.');
+                        return;
+                    }
+                } else {
+                    alert('Google Maps 플러그인을 로드할 수 없습니다.');
+                    return;
+                }
+            }
+            
+            if (currentBaseMap === 'google') return;
+            
+            // VWorld 기본 레이어 제거
+            if (vworldBaseLayer && map.hasLayer(vworldBaseLayer)) {
+                map.removeLayer(vworldBaseLayer);
+            }
+            // Google 지도 레이어 추가
+            if (!map.hasLayer(googleLayer)) {
+                googleLayer.addTo(map);
+            }
+            currentBaseMap = 'google';
+        }
+
+        function switchToVWorldMap() {
+            if (currentBaseMap === 'vworld') return;
+            
+            // Google 지도 레이어 제거
+            if (googleLayer && map.hasLayer(googleLayer)) {
+                map.removeLayer(googleLayer);
+            }
+            // VWorld 기본 레이어 추가
+            if (vworldBaseLayer && !map.hasLayer(vworldBaseLayer)) {
+                vworldBaseLayer.addTo(map);
+            }
+            currentBaseMap = 'vworld';
         }
 
         // 배송지 마커 표시
@@ -349,9 +437,11 @@
 
             // 레이어 필터링
             let filtered = deliveries;
-            if (currentLayer !== 'all') {
+            if (currentLayer !== 'all' && currentLayer !== 'google') {
                 const layerNum = parseInt(currentLayer);
-                filtered = deliveries.filter(d => (d.layer || 0) === layerNum);
+                if (!isNaN(layerNum)) {
+                    filtered = deliveries.filter(d => (d.layer || 0) === layerNum);
+                }
             }
 
             let needSave = false;
@@ -702,8 +792,35 @@
             myLocBtn.style.border = '2px solid #D32F2F';
             myLocBtn.innerHTML = '📌';
             myLocBtn.onclick = goToMyLocation;
-            document.body.appendChild(myLocBtn);
-        });
+             document.body.appendChild(myLocBtn);
+         });
+     </script>
+    <!-- Google Maps API (설정 페이지에서 저장한 키를 사용) -->
+    <script>
+        // 설정 페이지에서 저장된 Google Maps API 키 불러오기
+        const loadGoogleMapsAPI = () => {
+            try {
+                const settings = JSON.parse(localStorage.getItem('deliverySettings') || '{}');
+                const apiKey = settings.googleMapsKey || '';
+                window.GOOGLE_MAPS_API_KEY = apiKey;
+                
+                if (apiKey && apiKey.trim() !== '') {
+                    const script = document.createElement('script');
+                    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}`;
+                    script.async = true;
+                    script.defer = true;
+                    document.head.appendChild(script);
+                    console.log('Google Maps API 키 로드됨');
+                } else {
+                    console.log('Google Maps API 키가 설정되지 않았습니다. 설정 페이지에서 입력하세요.');
+                }
+            } catch (error) {
+                console.error('Google Maps API 키 로드 실패:', error);
+            }
+        };
+        
+        // 페이지 로드 시 API 키 로드
+        loadGoogleMapsAPI();
     </script>
 </body>
 
