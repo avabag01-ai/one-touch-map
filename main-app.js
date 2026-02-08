@@ -151,6 +151,13 @@ function renderDongRadios() {
 
         radio.addEventListener('change', () => {
             selectedDong = dong;
+            
+            // 전국코드 클릭 시 지역 선택 모달 표시
+            if (dong === '전국코드') {
+                showNationalRegionModal();
+                return;
+            }
+            
             // 동이 바뀌면 주소 초기화
             addressBefore = '';
             addressAfter = '';
@@ -455,4 +462,133 @@ function showToast(message) {
 // 스캔 기능 (OCR)
 function setupScanFeature() {
     // 이 부분은 기존 코드에 있다면 유지
+}
+
+// === 전국모드 기능 ===
+let nationalModalStep = 'sido'; // 'sido', 'gugun', 'dong'
+let selectedSido = '';
+let selectedGugun = '';
+
+function showNationalRegionModal() {
+    // 모달이 없으면 생성
+    let modal = document.getElementById('nationalModal');
+    if (!modal) {
+        modal = createNationalModal();
+    }
+    
+    // 초기화
+    nationalModalStep = 'sido';
+    selectedSido = '';
+    selectedGugun = '';
+    
+    // 시/도 목록 표시
+    showSidoList();
+    modal.style.display = 'flex';
+}
+
+function createNationalModal() {
+    const modal = document.createElement('div');
+    modal.id = 'nationalModal';
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+        <div class="modal-content national-modal">
+            <div class="modal-header">
+                <button id="nationalBackBtn" class="btn-back" style="display:none;">← 뒤로</button>
+                <h3 id="nationalModalTitle">지역 선택</h3>
+                <button id="nationalCloseBtn" class="btn-close">✕</button>
+            </div>
+            <div id="nationalModalBody" class="national-modal-body">
+                <!-- 동적으로 채워짐 -->
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // 닫기 버튼
+    modal.querySelector('#nationalCloseBtn').addEventListener('click', () => {
+        modal.style.display = 'none';
+        // 전국코드 선택 해제
+        selectedDong = settings.dongs[1] || '중화동';
+        renderDongRadios();
+    });
+    
+    // 뒤로 버튼
+    modal.querySelector('#nationalBackBtn').addEventListener('click', () => {
+        if (nationalModalStep === 'gugun') {
+            nationalModalStep = 'sido';
+            selectedSido = '';
+            showSidoList();
+        }
+    });
+    
+    return modal;
+}
+
+function showSidoList() {
+    const modal = document.getElementById('nationalModal');
+    const title = modal.querySelector('#nationalModalTitle');
+    const body = modal.querySelector('#nationalModalBody');
+    const backBtn = modal.querySelector('#nationalBackBtn');
+    
+    title.textContent = '시/도 선택';
+    backBtn.style.display = 'none';
+    
+    const sidoList = getSidoList();
+    body.innerHTML = sidoList.map(sido => `
+        <button class="region-btn" onclick="selectSido('${sido}')">${sido}</button>
+    `).join('');
+}
+
+function selectSido(sido) {
+    selectedSido = sido;
+    nationalModalStep = 'gugun';
+    showGugunList(sido);
+}
+
+function showGugunList(sido) {
+    const modal = document.getElementById('nationalModal');
+    const title = modal.querySelector('#nationalModalTitle');
+    const body = modal.querySelector('#nationalModalBody');
+    const backBtn = modal.querySelector('#nationalBackBtn');
+    
+    title.textContent = `${sido} > 구/군 선택`;
+    backBtn.style.display = 'inline-block';
+    
+    const gugunList = getGugunList(sido);
+    body.innerHTML = gugunList.map(gugun => `
+        <button class="region-btn" onclick="selectGugun('${gugun}')">${gugun}</button>
+    `).join('');
+}
+
+function selectGugun(gugun) {
+    selectedGugun = gugun;
+    
+    // 모달 닫기
+    document.getElementById('nationalModal').style.display = 'none';
+    
+    // 해당 지역의 동 목록을 가져와서 설정에 임시 저장
+    const dongList = getDongList(selectedSido, gugun);
+    
+    // 전국코드 유지 + 선택한 지역 동들 추가
+    const originalFirstDong = settings.dongs[0];
+    settings.dongs = [originalFirstDong, ...dongList.map(dong => `${dong}\n${selectedSido}\n${gugun}`)];
+    
+    // 첫 번째 동 자동 선택
+    if (dongList.length > 0) {
+        selectedDong = settings.dongs[1];
+    }
+    
+    // 주소 초기화
+    addressBefore = '';
+    addressAfter = '';
+    currentField = 'before';
+    
+    // UI 업데이트
+    updateFieldFocus();
+    updateDisplay();
+    renderDongRadios();
+    updateQuickSelect();
+    
+    showToast(`${selectedSido} ${gugun} 동 목록 표시됨`);
 }
