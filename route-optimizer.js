@@ -1,7 +1,8 @@
 // 배송 경로 최적화 모듈 (Route Optimizer)
 // 기능: 현재 위치 기준 최단 경로 정렬, 주소 좌표 변환
 
-const VWORLD_API_KEY_OPT = 'EEB68327-5D04-3BE3-9072-D3ECFCCC26A2';
+// API 키는 config.js의 CONFIG.VWORLD_API_KEY 에서 가져옴 (없으면 fallback)
+const VWORLD_API_KEY_OPT = (window.CONFIG && CONFIG.VWORLD_API_KEY) || 'EEB68327-5D04-3BE3-9072-D3ECFCCC26A2';
 
 const RouteOptimizer = {
     // 메인 함수: 배송 리스트를 받아 최적화된 리스트를 반환
@@ -75,26 +76,35 @@ const RouteOptimizer = {
     },
 
     // VWorld Geocoder API (JSONP 방식 - CORS 해결)
+    // ✅ 전국 모드 지원: 특정 지역을 하드코딩하지 않고 주소 그대로 사용
     async fetchVWorldCoord(address) {
         if (!address) return null;
 
-        // "서울특별시 중랑구"를 확실히 붙여야 번지수(지번)를 정확히 찾습니다.
-        let fullQuery = address;
-        if (!fullQuery.includes('서울특별시') && !fullQuery.includes('중랑구')) {
-            fullQuery = `서울특별시 중랑구 ${fullQuery}`;
+        // fullAddress 형식: "도로명주소/지번주소" 또는 "지번주소"
+        // "/" 로 분리해서 도로명과 지번을 개별 시도
+        const parts = address.split('/');
+        const roadAddr = parts[0] ? parts[0].trim() : null;
+        const jibunAddr = parts[1] ? parts[1].trim() : null;
+
+        // 1순위: 지번(PARCEL) 시도
+        let coords = null;
+        if (jibunAddr) {
+            coords = await this._fetchGeocode(jibunAddr, 'PARCEL');
         }
 
-        // 사장님 요청: 무조건 지번(PARCEL)이 원리입니다.
-        let coords = await this._fetchGeocode(fullQuery, 'PARCEL');
+        // 2순위: 도로명(ROAD) 시도
+        if (!coords && roadAddr) {
+            coords = await this._fetchGeocode(roadAddr, 'ROAD');
+        }
 
-        // 지번 실패 시에만 도로명(ROAD) 보조 시도
+        // 3순위: 원본 주소 전체로 PARCEL 시도
         if (!coords) {
-            coords = await this._fetchGeocode(fullQuery, 'ROAD');
+            coords = await this._fetchGeocode(address, 'PARCEL');
         }
 
-        // 둘 다 실패 시 원본으로 마지막 시도
-        if (!coords && address !== fullQuery) {
-            coords = await this._fetchGeocode(address, 'PARCEL');
+        // 4순위: 원본 주소 전체로 ROAD 시도
+        if (!coords) {
+            coords = await this._fetchGeocode(address, 'ROAD');
         }
 
         return coords;

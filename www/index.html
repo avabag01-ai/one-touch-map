@@ -55,7 +55,7 @@
                 <button class="key-num" data-value="1">1</button>
                 <button class="key-num" data-value="2">2</button>
                 <button class="key-num" data-value="3">3</button>
-                <button class="key-special" data-value="←">←</button>
+                <button class="key-special" onclick="location.href='list.html'">←</button>
 
                 <button class="key-num" data-value="4">4</button>
                 <button class="key-num" data-value="5">5</button>
@@ -77,14 +77,10 @@
                 <button class="key-action big-btn" id="registerBtn">배송등록</button>
                 <button class="key-action big-btn" id="listBtn" onclick="location.href='list.html'">배송주소</button>
                 <div class="road-grid">
-                    <button class="key-road"
-                        onclick="addressBefore += '가길'; currentField='before'; updateDisplay();">가길</button>
-                    <button class="key-road"
-                        onclick="addressBefore += '나길'; currentField='before'; updateDisplay();">나길</button>
-                    <button class="key-road"
-                        onclick="addressBefore += '다길'; currentField='before'; updateDisplay();">다길</button>
-                    <button class="key-road"
-                        onclick="addressBefore += '라길'; currentField='before'; updateDisplay();">라길</button>
+                    <button class="key-road" id="roadLink1">가길</button>
+                    <button class="key-road" id="roadLink2">나길</button>
+                    <button class="key-road" id="roadLink3">다길</button>
+                    <button class="key-road" id="roadLink4">라길</button>
                 </div>
             </div>
         </div>
@@ -134,6 +130,7 @@
             </div>
         </div>
 
+        <script src="config.js"></script>
         <script src="anchor-system.js"></script>
         <script src="national-regions.js"></script>
         <script src="ocr-app.js"></script>

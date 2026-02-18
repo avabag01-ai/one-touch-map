@@ -239,19 +239,10 @@
     <button class="back-btn" onclick="location.href='index.html'">←</button>
     <span id="headerTitle" style="display:none;"></span>
 
-    <!-- 레이어 토글 버튼 -->
-    <button class="layer-toggle-btn" id="layerToggleBtn">L 필터</button>
+    <!-- 상단 레벨 필터 제거됨 (요청에 따라 삭제) -->
 
-    <!-- 레이어 필터 (접이식) -->
-    <div class="layer-filter" id="layerFilter">
-        <button class="filter-btn active" data-layer="all">전체</button>
-        <button class="filter-btn" data-layer="1">L1</button>
-        <button class="filter-btn" data-layer="2">L2</button>
-        <button class="filter-btn" data-layer="3">L3</button>
-        <button class="filter-btn" data-layer="4">L4</button>
-        <button class="filter-btn" data-layer="5">L5</button>
-        <button class="filter-btn" data-layer="0">미지정</button>
-    </div>
+    <!-- 레이어 토글 버튼 (전체 / 지금갈곳 토글) -->
+    <button class="layer-toggle-btn" id="layerToggleBtn" style="left:64px; font-size:11px;">전체보기</button>
 
     <!-- 지도 - 전체화면 -->
     <div id="map" style="position: absolute; top: 0; bottom: 0; width: 100%; height: 100vh;"></div>
@@ -262,6 +253,8 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <!-- Leaflet Rotate -->
     <script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js"></script>
+    <!-- Leaflet GoogleMutant 플러그인 -->
+    <script src="https://unpkg.com/leaflet.gridlayer.googlemutant@latest/dist/Leaflet.GoogleMutant.js"></script>
 
     <script src="android-back.js"></script>
     <script src="route-optimizer.js"></script>
@@ -272,6 +265,8 @@
         let deliveries = [];
         let markers = [];
         let currentLayer = 'all';
+        let googleLayer = null;
+        let currentBaseMap = 'vworld'; // 'vworld' or 'google'
 
         // 지도 초기화
         function initMap() {
@@ -316,21 +311,120 @@
                 }
             ).addTo(map);
 
-            // 지도 클릭 시 역지오코딩 (신주소 조회)
-            setupMapClickAddress();
+            // Google 지도 레이어 변수 초기화 (필요할 때 생성됨)
+            googleLayer = null;
+
+            // 지도 클릭 팝업 비활성화 (지도에 신주소 표시되므로 불필요)
+            // setupMapClickAddress();
 
             // 배송지 표시
             displayMarkers();
 
-            // 레이어 필터 버튼 이벤트
-            document.querySelectorAll('.filter-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    currentLayer = btn.dataset.layer;
-                    displayMarkers();
-                });
+            // 레이어 토글 버튼 이벤트
+            document.getElementById('layerToggleBtn').addEventListener('click', () => {
+                const btn = document.getElementById('layerToggleBtn');
+                if (currentLayer === 'all') {
+                    currentLayer = 'now';
+                    btn.textContent = '지금갈곳';
+                    btn.style.background = '#FF5252';
+                    btn.style.color = 'white';
+                    btn.style.borderColor = '#D32F2F';
+                } else {
+                    currentLayer = 'all';
+                    btn.textContent = '전체보기';
+                    btn.style.background = 'white';
+                    btn.style.color = '#333';
+                    btn.style.borderColor = '#CCC';
+                }
+                displayMarkers();
             });
+
+            // 레벨 필터 전역 함수 설정
+            window.setLevelFilter = (level) => {
+                currentLayer = 'level_' + level;
+                const btn = document.getElementById('layerToggleBtn');
+                btn.textContent = '레벨' + level;
+                btn.style.background = '#673AB7';
+                btn.style.color = 'white';
+                displayMarkers();
+
+                // 해당 레벨 마커들로 줌
+                setTimeout(() => {
+                    if (markers.length > 0) {
+                        const group = L.featureGroup(markers);
+                        map.fitBounds(group.getBounds().pad(0.5), { maxZoom: 19 });
+                    }
+                }, 100);
+            };
+        }
+
+        // 기본 지도 전환 함수
+        function switchToGoogleMap() {
+            // API 키 확인 (재확인)
+            if (!window.GOOGLE_MAPS_API_KEY || window.GOOGLE_MAPS_API_KEY.trim() === '') {
+                // localStorage에서 다시 확인
+                try {
+                    const settings = JSON.parse(localStorage.getItem('deliverySettings') || '{}');
+                    const apiKey = settings.googleMapsKey || '';
+                    window.GOOGLE_MAPS_API_KEY = apiKey;
+
+                    if (!apiKey || apiKey.trim() === '') {
+                        const confirmMove = confirm('Google Maps API 키가 설정되지 않았습니다.\n설정 페이지로 이동하여 키를 입력하시겠습니까?');
+                        if (confirmMove) {
+                            window.location.href = 'settings.html';
+                        }
+                        return;
+                    }
+                } catch (e) {
+                    console.error('API 키 확인 실패:', e);
+                    alert('Google Maps API 키를 확인하는 중 오류가 발생했습니다.');
+                    return;
+                }
+            }
+
+            // 레이어 생성 (아직 생성되지 않았을 경우)
+            if (!googleLayer) {
+                if (window.L && window.L.gridLayer && window.L.gridLayer.googleMutant) {
+                    try {
+                        googleLayer = L.gridLayer.googleMutant({
+                            type: 'roadmap' // 'roadmap', 'satellite', 'hybrid', 'terrain'
+                        });
+                    } catch (e) {
+                        console.error('Google Maps 레이어 생성 실패:', e);
+                        alert('Google Maps 레이어를 생성할 수 없습니다. API 키를 확인해주세요.');
+                        return;
+                    }
+                } else {
+                    alert('Google Maps 플러그인을 로드할 수 없습니다.');
+                    return;
+                }
+            }
+
+            if (currentBaseMap === 'google') return;
+
+            // VWorld 기본 레이어 제거
+            if (vworldBaseLayer && map.hasLayer(vworldBaseLayer)) {
+                map.removeLayer(vworldBaseLayer);
+            }
+            // Google 지도 레이어 추가
+            if (!map.hasLayer(googleLayer)) {
+                googleLayer.addTo(map);
+            }
+            currentBaseMap = 'google';
+        }
+
+        function switchToVWorldMap() {
+            if (currentBaseMap === 'vworld') return;
+
+            // Google 지도 레이어 제거
+            if (googleLayer && map.hasLayer(googleLayer)) {
+                map.removeLayer(googleLayer);
+            }
+            // VWorld 기본 레이어 추가
+            if (vworldBaseLayer && !map.hasLayer(vworldBaseLayer)) {
+                vworldBaseLayer.addTo(map);
+            }
+            currentBaseMap = 'vworld';
         }
 
         // 배송지 마커 표시
@@ -349,9 +443,12 @@
 
             // 레이어 필터링
             let filtered = deliveries;
-            if (currentLayer !== 'all') {
-                const layerNum = parseInt(currentLayer);
-                filtered = deliveries.filter(d => (d.layer || 0) === layerNum);
+            if (currentLayer === 'now') {
+                // '지금갈곳': 긴급 항목이거나 레이어가 지정된(L1~L5) 항목
+                filtered = deliveries.filter(d => d.urgent || (d.layer && d.layer > 0));
+            } else if (currentLayer.startsWith('level_')) {
+                const level = parseInt(currentLayer.split('_')[1]);
+                filtered = deliveries.filter(d => (d.layer || 0) === level);
             }
 
             let needSave = false;
@@ -389,13 +486,15 @@
                     markerDiv.className = 'custom-marker';
                     if (delivery.urgent) markerDiv.classList.add('urgent');
 
-                    // 신주소 건물 번호 추출 (roadAddress 우선, 없으면 addressBefore/addressAfter)
+                    // ✅ 신주소(도로명) 건물 번호 추출
+                    // 반드시 로/길 이 포함된 도로명 주소에서만 번호 추출 (구주소 번호 방지)
                     let buildingNo = "";
-                    // roadAddress(도로명주소)를 최우선으로 사용
-                    const addrSrc = delivery.roadAddress || delivery.addressAfter || delivery.addressBefore || '';
-                    if (addrSrc) {
-                        // 모든 [로길] 뒤 숫자를 찾고 마지막 것 사용
-                        const matches = [...addrSrc.matchAll(/[로길]\s*(\d+(?:-\d+)?)/g)];
+                    const roadSrc = delivery.roadAddress ||
+                        (/[로길]/.test(delivery.addressAfter || '') ? delivery.addressAfter : null) ||
+                        (/[로길]/.test(delivery.addressBefore || '') ? delivery.addressBefore : null) || '';
+                    if (roadSrc) {
+                        // 모든 [로길] 뒤 숫자를 찾고 마지막 것 사용 (신주소 건물번호)
+                        const matches = [...roadSrc.matchAll(/[로길]\s*(\d+(?:-\d+)?)/g)];
                         if (matches.length > 0) buildingNo = matches[matches.length - 1][1];
                     }
 
@@ -497,28 +596,58 @@
         // VWorld 설정
         let vworldBaseLayer;
         let addressLayer; // 도로명주소 레이어
-        const VWORLD_KEY = 'EEB68327-5D04-3BE3-9072-D3ECFCCC26A2';
+        const VWORLD_KEY = (window.CONFIG && CONFIG.VWORLD_API_KEY) || 'EEB68327-5D04-3BE3-9072-D3ECFCCC26A2';
 
-        // 좌표로 도로명주소 조회 (VWorld API)
+        // ✅ JSONP 기반 역지오코딩 (CORS 문제 없음 - Android/Capacitor 대응)
+        function reverseGeocodeJSONP(lng, lat, type) {
+            return new Promise((resolve) => {
+                const cbName = 'vworldRev_' + Date.now() + '_' + Math.round(Math.random() * 1e5);
+                const script = document.createElement('script');
+                let done = false;
+
+                const cleanup = () => {
+                    delete window[cbName];
+                    if (script.parentNode) script.parentNode.removeChild(script);
+                };
+
+                const timer = setTimeout(() => {
+                    if (!done) { done = true; cleanup(); resolve(null); }
+                }, 5000);
+
+                window[cbName] = (data) => {
+                    if (done) return;
+                    done = true;
+                    clearTimeout(timer);
+                    cleanup();
+                    if (data && data.response && data.response.status === 'OK' && data.response.result) {
+                        resolve(data.response.result[0].text || null);
+                    } else {
+                        resolve(null);
+                    }
+                };
+
+                script.onerror = () => {
+                    if (!done) { done = true; clearTimeout(timer); cleanup(); resolve(null); }
+                };
+
+                script.src = `https://api.vworld.kr/req/address?service=address&request=getAddress&version=2.0&crs=epsg:4326&point=${lng},${lat}&format=json&type=${type}&key=${VWORLD_KEY}&callback=${cbName}`;
+                document.body.appendChild(script);
+            });
+        }
+
+        // 좌표로 도로명주소 조회 (JSONP 방식으로 변경)
         async function getRoadAddressFromCoords(lat, lng) {
             try {
-                const url = `https://api.vworld.kr/req/address?service=address&request=getAddress&version=2.0&crs=epsg:4326&point=${lng},${lat}&format=json&type=ROAD&key=${VWORLD_KEY}`;
-                const res = await fetch(url);
-                const data = await res.json();
-                if (data.response && data.response.status === 'OK' && data.response.result) {
-                    const text = data.response.result[0].text;
-                    // 강제 검증: '로'나 '길'이 없으면 도로명주소가 아님 (지번일 수 있음) -> 무시
-                    if (/[로길]/.test(text)) {
-                        return text;
-                    }
-                }
+                const text = await reverseGeocodeJSONP(lng, lat, 'ROAD');
+                // 강제 검증: '로'나 '길'이 없으면 도로명주소가 아님 → null 반환
+                if (text && /[로길]/.test(text)) return text;
             } catch (e) {
-                console.error("Road address fetch failed", e);
+                console.error('Road address fetch failed', e);
             }
             return null;
         }
 
-        // 지도 클릭 시 신주소 조회 (역지오코딩)
+        // 지도 클릭 시 신주소 조회 (역지오코딩) - ✅ JSONP 방식으로 수정
         function setupMapClickAddress() {
             map.on('click', async (e) => {
                 const lat = e.latlng.lat;
@@ -527,54 +656,53 @@
                 // 로딩 팝업 표시
                 const popup = L.popup()
                     .setLatLng(e.latlng)
-                    .setContent('<div style="text-align:center; padding:4px;">🔍 주소 조회중...</div>')
+                    .setContent('<div style="text-align:center; padding:8px;">🔍 주소 조회중...</div>')
                     .openOn(map);
 
-                try {
-                    // VWorld 역지오코딩 API (도로명주소)
-                    const url = `https://api.vworld.kr/req/address?service=address&request=getAddress&version=2.0&crs=epsg:4326&point=${lng},${lat}&format=json&type=ROAD&key=${VWORLD_KEY}`;
-                    const res = await fetch(url);
-                    const data = await res.json();
+                // 도로명 + 지번 동시 조회 (JSONP)
+                const [roadAddr, jibunAddr] = await Promise.all([
+                    reverseGeocodeJSONP(lng, lat, 'ROAD'),
+                    reverseGeocodeJSONP(lng, lat, 'PARCEL')
+                ]);
 
-                    let roadAddr = '';
-                    let jibunAddr = '';
+                let html = '<div style="font-size:13px; line-height:1.8; max-width:260px; padding:2px 0;">';
 
-                    if (data.response && data.response.status === 'OK' && data.response.result) {
-                        const result = data.response.result[0];
-                        roadAddr = result.text || '';
-                    }
-
-                    // 지번주소도 조회
-                    try {
-                        const url2 = `https://api.vworld.kr/req/address?service=address&request=getAddress&version=2.0&crs=epsg:4326&point=${lng},${lat}&format=json&type=PARCEL&key=${VWORLD_KEY}`;
-                        const res2 = await fetch(url2);
-                        const data2 = await res2.json();
-                        if (data2.response && data2.response.status === 'OK' && data2.response.result) {
-                            jibunAddr = data2.response.result[0].text || '';
-                        }
-                    } catch (e2) { }
-
-                    let html = '<div style="font-size:13px; line-height:1.6; max-width:250px;">';
-                    if (roadAddr) {
-                        html += `<div style="font-weight:bold; color:#1976D2;">📍 ${roadAddr}</div>`;
-                    }
-                    if (jibunAddr) {
-                        html += `<div style="color:#666; font-size:11px;">지번: ${jibunAddr}</div>`;
-                    }
-                    if (!roadAddr && !jibunAddr) {
-                        html += '<div style="color:#999;">주소를 찾을 수 없습니다</div>';
-                    }
-                    // 복사 버튼
-                    if (roadAddr) {
-                        html += `<button onclick="navigator.clipboard.writeText('${roadAddr.replace(/'/g, "\\'")}'); this.textContent='복사됨!'; setTimeout(()=>this.textContent='주소 복사',1000)" style="margin-top:6px; background:#4CAF50; color:white; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:11px; width:100%;">주소 복사</button>`;
-                    }
-                    html += '</div>';
-
-                    popup.setContent(html);
-                } catch (err) {
-                    popup.setContent('<div style="color:red; padding:4px;">주소 조회 실패</div>');
-                    console.error('역지오코딩 오류:', err);
+                if (roadAddr) {
+                    html += `<div style="font-weight:bold; color:#1976D2; margin-bottom:2px;">📍 ${roadAddr}</div>`;
                 }
+                if (jibunAddr) {
+                    html += `<div style="color:#666; font-size:11px;">지번: ${jibunAddr}</div>`;
+                }
+                if (!roadAddr && !jibunAddr) {
+                    // ✅ 주소 없는 지역 클릭 시 팝업 안 뜨게 (요청사항)
+                    map.closePopup();
+                    return;
+                }
+
+                // 복사 버튼 (도로명 우선, 없으면 지번)
+                const copyTarget = roadAddr || jibunAddr;
+                if (copyTarget) {
+                    const escaped = copyTarget.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                    html += `<button onclick="
+                        if(navigator.clipboard){
+                            navigator.clipboard.writeText('${escaped}')
+                                .then(()=>{this.textContent='✅ 복사됨!'; setTimeout(()=>this.textContent='📋 주소 복사',1500);})
+                                .catch(()=>{this.textContent='❌ 실패';});
+                        } else {
+                            const el=document.createElement('textarea');
+                            el.value='${escaped}';
+                            document.body.appendChild(el);
+                            el.select();
+                            document.execCommand('copy');
+                            document.body.removeChild(el);
+                            this.textContent='✅ 복사됨!';
+                            setTimeout(()=>this.textContent='📋 주소 복사',1500);
+                        }
+                    " style="margin-top:8px; background:#4CAF50; color:white; border:none; padding:6px 10px; border-radius:6px; cursor:pointer; font-size:12px; width:100%; font-weight:600;">📋 주소 복사</button>`;
+                }
+                html += '</div>';
+
+                popup.setContent(html);
             });
         }
 
@@ -688,8 +816,8 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             initMap();
-            document.getElementById('layerToggleBtn').addEventListener('click', () => document.getElementById('layerFilter').classList.toggle('open'));
-            map.on('click', () => document.getElementById('layerFilter').classList.remove('open'));
+            // ✅ layerFilter 요소는 HTML에 없으므로 해당 참조 제거 (오류 수정)
+            // layerToggleBtn 클릭 이벤트는 initMap() 안에서 이미 등록됨 (중복 제거)
 
             // 내 위치로 즉시 이동 버튼 (빨간 핀)
             const myLocBtn = document.createElement('button');
@@ -704,6 +832,33 @@
             myLocBtn.onclick = goToMyLocation;
             document.body.appendChild(myLocBtn);
         });
+    </script>
+    <!-- Google Maps API (설정 페이지에서 저장한 키를 사용) -->
+    <script>
+        // 설정 페이지에서 저장된 Google Maps API 키 불러오기
+        const loadGoogleMapsAPI = () => {
+            try {
+                const settings = JSON.parse(localStorage.getItem('deliverySettings') || '{}');
+                const apiKey = settings.googleMapsKey || '';
+                window.GOOGLE_MAPS_API_KEY = apiKey;
+
+                if (apiKey && apiKey.trim() !== '') {
+                    const script = document.createElement('script');
+                    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}`;
+                    script.async = true;
+                    script.defer = true;
+                    document.head.appendChild(script);
+                    console.log('Google Maps API 키 로드됨');
+                } else {
+                    console.log('Google Maps API 키가 설정되지 않았습니다. 설정 페이지에서 입력하세요.');
+                }
+            } catch (error) {
+                console.error('Google Maps API 키 로드 실패:', error);
+            }
+        };
+
+        // 페이지 로드 시 API 키 로드
+        loadGoogleMapsAPI();
     </script>
 </body>
 

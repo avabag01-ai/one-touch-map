@@ -39,9 +39,17 @@ function loadSettings() {
         };
     }
 
-    // 첫 번째 동 선택
+    // '전국코드'가 아닌 첫 번째 동을 찾아서 선택
     if (settings.dongs && settings.dongs.length > 0) {
-        selectedDong = settings.dongs[0];
+        // '전국코드'가 아닌 첫 번째 요소를 찾음
+        const firstRealDong = settings.dongs.find(d => d !== '전국코드');
+
+        if (firstRealDong) {
+            selectedDong = firstRealDong;
+        } else {
+            // 만약 '전국코드' 밖에 없으면 어쩔 수 없이 첫 번째 선택
+            selectedDong = settings.dongs[0];
+        }
     }
 }
 
@@ -132,12 +140,23 @@ function updateFieldFocus() {
 // 동 라디오 버튼 렌더링
 function renderDongRadios() {
     const container = document.getElementById('dongRadios');
+    if (!container) return;
     container.innerHTML = '';
+
+    // 1. 전국코드 버튼 생성 (맨 앞 고정)
+    const nationalBtn = document.createElement('button');
+    nationalBtn.className = 'national-btn';
+    nationalBtn.textContent = '전국코드';
+    nationalBtn.addEventListener('click', () => {
+        showNationalRegionModal();
+    });
+    container.appendChild(nationalBtn);
 
     if (!settings.dongs || settings.dongs.length === 0) return;
 
-    settings.dongs.forEach((dong, index) => {
-        if (!dong) return;
+    // 2. 동 버튼들 생성 (딱 동 이름만 표시)
+    settings.dongs.forEach((dong) => {
+        if (!dong || dong === '전국코드') return;
 
         const label = document.createElement('label');
         label.className = 'dong-radio';
@@ -149,30 +168,31 @@ function renderDongRadios() {
         radio.value = dong;
         radio.checked = dong === selectedDong;
 
-        radio.addEventListener('change', () => {
+        // 동 선택 시 즉시 주소 입력창에 반영
+        const clickHandler = (e) => {
             selectedDong = dong;
-            
-            // 전국코드 클릭 시 지역 선택 모달 표시
-            if (dong === '전국코드') {
-                showNationalRegionModal();
-                return;
+            radio.checked = true;
+
+            const dongName = extractDongName(dong);
+            if (dongName && dongName !== '전국코드') {
+                addressBefore = dongName + " ";
+            } else {
+                addressBefore = '';
             }
-            
-            // 동이 바뀌면 주소 초기화
-            addressBefore = '';
             addressAfter = '';
-            // 입력 포커스를 주소전으로
+
             currentField = 'before';
             updateFieldFocus();
             updateDisplay();
             renderDongRadios();
             updateQuickSelect();
-        });
+        };
+
+        radio.addEventListener('click', clickHandler);
 
         const span = document.createElement('span');
-        // 동 이름에서 \n 이후 제거 (예: "중화동\n서울특별시\n중랑구" -> "중화동")
-        const dongName = dong.split('\n')[0];
-        span.textContent = dongName;
+        const dongLabel = dong.split('\n')[0]; // 다른 지역 정보 떼고 동 이름만
+        span.textContent = dongLabel;
 
         label.appendChild(radio);
         label.appendChild(span);
@@ -218,7 +238,7 @@ function updateQuickSelect() {
     };
 
     let roads = roadsByDong[dongName] || [];
-    
+
     // 등록된 동인데 도로명이 없는 경우, 동적으로 기본 도로명 생성
     if (roads.length === 0 && dongName && dongName !== '전국코드') {
         roads = generateDefaultRoads(dongName);
@@ -243,7 +263,7 @@ function updateQuickSelect() {
 function generateDefaultRoads(dongName) {
     // 동 이름에서 숫자를 제거한 부분 추출
     const baseName = dongName.replace(/[0-9]/g, '').replace('동', '');
-    
+
     // 기본 도로명 패턴 생성
     const defaultRoads = [
         `${baseName}로`,
@@ -255,7 +275,7 @@ function generateDefaultRoads(dongName) {
         `${baseName}동길`,
         `${baseName}남길`
     ];
-    
+
     return defaultRoads;
 }
 
@@ -322,7 +342,7 @@ function searchAddress() {
     const callbackName = 'vworldCallback_' + Date.now();
 
     // 전역 콜백 함수 등록
-    window[callbackName] = function(data) {
+    window[callbackName] = function (data) {
         console.log('VWorld API 응답:', data);
 
         if (data.response && data.response.status === 'OK' && data.response.result) {
@@ -366,13 +386,13 @@ function searchAddress() {
         document.body.removeChild(script);
     };
 
-    // VWorld Search API 사용
+    // VWorld Search API 사용 (API 키는 config.js에서 관리)
     const script = document.createElement('script');
-    const VWORLD_API_KEY = 'EEB68327-5D04-3BE3-9072-D3ECFCCC26A2';
-    script.src = `https://api.vworld.kr/req/search?service=search&request=search&version=2.0&crs=epsg:4326&query=${encodeURIComponent(queryAddress)}&type=ADDRESS&category=${searchCategory}&format=json&errorformat=json&key=${VWORLD_API_KEY}&callback=${callbackName}`;
+    const apiKey = (window.CONFIG && CONFIG.VWORLD_API_KEY) || 'EEB68327-5D04-3BE3-9072-D3ECFCCC26A2';
+    script.src = `https://api.vworld.kr/req/search?service=search&request=search&version=2.0&crs=epsg:4326&query=${encodeURIComponent(queryAddress)}&type=ADDRESS&category=${searchCategory}&format=json&errorformat=json&key=${apiKey}&callback=${callbackName}`;
 
     // 에러 처리
-    script.onerror = function() {
+    script.onerror = function () {
         showToast('⚠ 네트워크 오류');
         delete window[callbackName];
         if (script.parentNode) {
@@ -381,7 +401,7 @@ function searchAddress() {
     };
 
     // 타임아웃 처리 (5초)
-    setTimeout(function() {
+    setTimeout(function () {
         if (window[callbackName]) {
             showToast('⚠ 없는 주소이거나 응답 시간 초과');
             delete window[callbackName];
@@ -459,10 +479,7 @@ function showToast(message) {
     }, 2000);
 }
 
-// 스캔 기능 (OCR)
-function setupScanFeature() {
-    // 이 부분은 기존 코드에 있다면 유지
-}
+
 
 // === 전국모드 기능 ===
 let nationalModalStep = 'sido'; // 'sido', 'gugun', 'dong'
@@ -475,12 +492,12 @@ function showNationalRegionModal() {
     if (!modal) {
         modal = createNationalModal();
     }
-    
+
     // 초기화
     nationalModalStep = 'sido';
     selectedSido = '';
     selectedGugun = '';
-    
+
     // 시/도 목록 표시
     showSidoList();
     modal.style.display = 'flex';
@@ -502,9 +519,9 @@ function createNationalModal() {
             </div>
         </div>
     `;
-    
+
     document.body.appendChild(modal);
-    
+
     // 닫기 버튼
     modal.querySelector('#nationalCloseBtn').addEventListener('click', () => {
         modal.style.display = 'none';
@@ -512,7 +529,7 @@ function createNationalModal() {
         selectedDong = settings.dongs[1] || '중화동';
         renderDongRadios();
     });
-    
+
     // 뒤로 버튼
     modal.querySelector('#nationalBackBtn').addEventListener('click', () => {
         if (nationalModalStep === 'gugun') {
@@ -521,7 +538,7 @@ function createNationalModal() {
             showSidoList();
         }
     });
-    
+
     return modal;
 }
 
@@ -530,10 +547,10 @@ function showSidoList() {
     const title = modal.querySelector('#nationalModalTitle');
     const body = modal.querySelector('#nationalModalBody');
     const backBtn = modal.querySelector('#nationalBackBtn');
-    
+
     title.textContent = '시/도 선택';
     backBtn.style.display = 'none';
-    
+
     const sidoList = getSidoList();
     body.innerHTML = sidoList.map(sido => `
         <button class="region-btn" onclick="selectSido('${sido}')">${sido}</button>
@@ -551,10 +568,10 @@ function showGugunList(sido) {
     const title = modal.querySelector('#nationalModalTitle');
     const body = modal.querySelector('#nationalModalBody');
     const backBtn = modal.querySelector('#nationalBackBtn');
-    
+
     title.textContent = `${sido} > 구/군 선택`;
     backBtn.style.display = 'inline-block';
-    
+
     const gugunList = getGugunList(sido);
     body.innerHTML = gugunList.map(gugun => `
         <button class="region-btn" onclick="selectGugun('${gugun}')">${gugun}</button>
@@ -563,32 +580,32 @@ function showGugunList(sido) {
 
 function selectGugun(gugun) {
     selectedGugun = gugun;
-    
+
     // 모달 닫기
     document.getElementById('nationalModal').style.display = 'none';
-    
+
     // 해당 지역의 동 목록을 가져와서 설정에 임시 저장
     const dongList = getDongList(selectedSido, gugun);
-    
+
     // 전국코드 유지 + 선택한 지역 동들 추가
     const originalFirstDong = settings.dongs[0];
     settings.dongs = [originalFirstDong, ...dongList.map(dong => `${dong}\n${selectedSido}\n${gugun}`)];
-    
+
     // 첫 번째 동 자동 선택
     if (dongList.length > 0) {
         selectedDong = settings.dongs[1];
     }
-    
+
     // 주소 초기화
     addressBefore = '';
     addressAfter = '';
     currentField = 'before';
-    
+
     // UI 업데이트
     updateFieldFocus();
     updateDisplay();
     renderDongRadios();
     updateQuickSelect();
-    
+
     showToast(`${selectedSido} ${gugun} 동 목록 표시됨`);
 }
