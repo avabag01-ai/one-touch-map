@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>원터치맵 설치</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <meta name="theme-color" content="#2196F3">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 24px;
+            padding: 40px;
+            max-width: 400px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+
+        .logo {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 60px;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 12px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 16px;
+            margin-bottom: 32px;
+            line-height: 1.5;
+        }
+
+        .features {
+            background: #f8f9fa;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 32px;
+            text-align: left;
+        }
+
+        .feature {
+            display: flex;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .feature:last-child {
+            margin-bottom: 0;
+        }
+
+        .feature-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 16px;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .feature-text {
+            color: #333;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        .install-btn {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 16px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .install-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(102, 126, 234, 0.5);
+        }
+
+        .install-btn:active {
+            transform: translateY(0);
+        }
+
+        .open-btn {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+            margin-top: 12px;
+        }
+
+        .info {
+            margin-top: 24px;
+            padding: 16px;
+            background: #fff3cd;
+            border-radius: 12px;
+            font-size: 13px;
+            color: #856404;
+            line-height: 1.6;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .status {
+            margin-top: 16px;
+            padding: 12px;
+            background: #e8f5e9;
+            border-radius: 12px;
+            color: #2e7d32;
+            font-size: 14px;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 32px 24px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">📦</div>
+        <h1>원터치맵</h1>
+        <p class="subtitle">배송 관리를 위한<br>OCR 주소 인식 및 최적 경로 앱</p>
+
+        <div class="features">
+            <div class="feature">
+                <div class="feature-icon">📸</div>
+                <div class="feature-text">송장을 찍으면 자동으로 주소 인식</div>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🗺️</div>
+                <div class="feature-text">지도에 배송지 자동 표시</div>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🚀</div>
+                <div class="feature-text">최적 경로로 빠른 배송</div>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">📱</div>
+                <div class="feature-text">오프라인에서도 사용 가능</div>
+            </div>
+        </div>
+
+        <button id="installBtn" class="install-btn">
+            📲 앱 설치하기
+        </button>
+
+        <button id="openBtn" class="install-btn open-btn hidden">
+            🚀 앱 열기
+        </button>
+
+        <div id="status" class="status hidden"></div>
+
+        <div class="info">
+            💡 <strong>iPhone 사용자:</strong><br>
+            Safari에서 하단의 공유 버튼(
+            <svg width="12" height="16" viewBox="0 0 12 16" style="vertical-align: middle;">
+                <path fill="currentColor" d="M6 0L3 3h2v5h2V3h2L6 0zm5 11v3H1v-3H0v4h12v-4h-1z"/>
+            </svg>
+            )을 눌러<br>"홈 화면에 추가"를 선택하세요
+        </div>
+    </div>
+
+    <script>
+        // PWA 설치 프롬프트
+        let deferredPrompt;
+        const installBtn = document.getElementById('installBtn');
+        const openBtn = document.getElementById('openBtn');
+        const statusDiv = document.getElementById('status');
+
+        // Service Worker 등록
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./service-worker.js')
+                .then(reg => {
+                    console.log('✅ Service Worker 등록 완료');
+                    showStatus('✅ 오프라인 모드 준비 완료', 'success');
+                })
+                .catch(err => {
+                    console.error('❌ Service Worker 등록 실패:', err);
+                });
+        }
+
+        // 이미 설치되어 있는지 확인
+        if (window.matchMedia('(display-mode: standalone)').matches ||
+            window.navigator.standalone === true) {
+            // 이미 PWA로 실행 중
+            installBtn.classList.add('hidden');
+            openBtn.classList.remove('hidden');
+            showStatus('✅ 앱이 이미 설치되어 있습니다', 'success');
+        }
+
+        // 설치 프롬프트 캡처
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            installBtn.classList.remove('hidden');
+            console.log('💾 설치 프롬프트 준비됨');
+        });
+
+        // 설치 버튼 클릭
+        installBtn.addEventListener('click', async () => {
+            if (!deferredPrompt) {
+                // iOS 또는 이미 설치된 경우
+                showStatus('ℹ️ 브라우저 메뉴에서 "홈 화면에 추가"를 선택하세요', 'info');
+                return;
+            }
+
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.choiceResult;
+
+            if (outcome === 'accepted') {
+                showStatus('✅ 설치 완료! 앱을 열어보세요', 'success');
+                installBtn.classList.add('hidden');
+                openBtn.classList.remove('hidden');
+            } else {
+                showStatus('❌ 설치가 취소되었습니다', 'error');
+            }
+
+            deferredPrompt = null;
+        });
+
+        // 앱 열기 버튼
+        openBtn.addEventListener('click', () => {
+            window.location.href = './index.html';
+        });
+
+        // 설치 완료 감지
+        window.addEventListener('appinstalled', () => {
+            showStatus('✅ 앱 설치 완료!', 'success');
+            installBtn.classList.add('hidden');
+            openBtn.classList.remove('hidden');
+            deferredPrompt = null;
+        });
+
+        function showStatus(message, type) {
+            statusDiv.textContent = message;
+            statusDiv.className = 'status';
+            statusDiv.classList.remove('hidden');
+
+            if (type === 'success') {
+                statusDiv.style.background = '#e8f5e9';
+                statusDiv.style.color = '#2e7d32';
+            } else if (type === 'error') {
+                statusDiv.style.background = '#ffebee';
+                statusDiv.style.color = '#c62828';
+            } else {
+                statusDiv.style.background = '#e3f2fd';
+                statusDiv.style.color = '#1565c0';
+            }
+
+            // 3초 후 자동 숨김
+            setTimeout(() => {
+                statusDiv.classList.add('hidden');
+            }, 5000);
+        }
+
+        // 페이지 로드 시 바로 앱으로 이동 (설치되어 있으면)
+        if (window.matchMedia('(display-mode: standalone)').matches ||
+            window.navigator.standalone === true) {
+            // 2초 후 자동으로 앱 열기
+            setTimeout(() => {
+                window.location.href = './index.html';
+            }, 2000);
+        }
+    </script>
+</body>
+</html>
