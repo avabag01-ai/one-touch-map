@@ -98,8 +98,11 @@ function setupEventListeners() {
         updateFieldFocus();
     });
 
-    // 찾기 버튼 (지번 → 도로명 변환)
-    document.querySelector('.btn-find').addEventListener('click', searchAddress);
+    // 찾기 버튼 (지번 → 도로명 변환) - 이동된 버튼
+    const findBtn = document.querySelector('.btn-find-moved');
+    if (findBtn) {
+        findBtn.addEventListener('click', searchAddress);
+    }
 }
 
 // 키 입력 처리 - 항상 주소전(위 필드)에만 입력
