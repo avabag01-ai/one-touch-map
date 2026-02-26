@@ -141,10 +141,17 @@
             transform-origin: center;
         }
 
-        /* 확대/축소 버튼 완전히 숨기기 */
+        /* 확대/축소 버튼 완전히 숨기기 - 강력 캐시 무시 */
         .leaflet-control-zoom,
-        .leaflet-bar {
+        .leaflet-control-zoom-in,
+        .leaflet-control-zoom-out,
+        .leaflet-bar,
+        .leaflet-bar a,
+        .leaflet-control {
             display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
         }
 
         /* 커스텀 마커 - 사각형, 외곽선 없음 */
@@ -813,6 +820,19 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             initMap();
+
+            // 내 위치로 즉시 이동 버튼 (빨간 핀)
+            const myLocBtn = document.createElement('button');
+            myLocBtn.id = 'myLocationBtn';
+            myLocBtn.className = 'location-btn';
+            myLocBtn.style.bottom = '140px';
+            myLocBtn.style.fontSize = '20px';
+            myLocBtn.style.background = '#FF5252';
+            myLocBtn.style.color = 'white';
+            myLocBtn.style.border = '2px solid #D32F2F';
+            myLocBtn.innerHTML = '📌';
+            myLocBtn.onclick = goToMyLocation;
+            document.body.appendChild(myLocBtn);
         });
     </script>
     <!-- Google Maps API (설정 페이지에서 저장한 키를 사용) -->
