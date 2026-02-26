@@ -813,21 +813,6 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             initMap();
-            // ✅ layerFilter 요소는 HTML에 없으므로 해당 참조 제거 (오류 수정)
-            // layerToggleBtn 클릭 이벤트는 initMap() 안에서 이미 등록됨 (중복 제거)
-
-            // 내 위치로 즉시 이동 버튼 (빨간 핀)
-            const myLocBtn = document.createElement('button');
-            myLocBtn.id = 'myLocationBtn';
-            myLocBtn.className = 'location-btn';
-            myLocBtn.style.bottom = '140px';
-            myLocBtn.style.fontSize = '20px';
-            myLocBtn.style.background = '#FF5252';
-            myLocBtn.style.color = 'white';
-            myLocBtn.style.border = '2px solid #D32F2F';
-            myLocBtn.innerHTML = '📌';
-            myLocBtn.onclick = goToMyLocation;
-            document.body.appendChild(myLocBtn);
         });
     </script>
     <!-- Google Maps API (설정 페이지에서 저장한 키를 사용) -->
