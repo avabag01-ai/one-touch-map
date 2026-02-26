@@ -41,7 +41,9 @@
     }
 
     // [추가] History API를 이용한 백업 처리
-    if (window.location.href.includes('settings.html') || window.location.href.includes('list.html')) {
+    if (window.location.href.includes('settings.html') ||
+        window.location.href.includes('list.html') ||
+        window.location.href.includes('map.html')) {
         history.pushState({ page: 'current' }, document.title, window.location.href);
 
         window.addEventListener('popstate', (event) => {

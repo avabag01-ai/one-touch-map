@@ -67,25 +67,25 @@
             </div>
             <div class="form-group">
                 <label>설정동 2:</label>
-                <input type="text" id="dong2" value="중화동 서울특별시 중랑구">
+                <input type="text" id="dong2" value="">
             </div>
         </div>
 
         <div class="form-row">
             <div class="form-group">
                 <label>설정동 3:</label>
-                <input type="text" id="dong3" value="묵동">
+                <input type="text" id="dong3" value="">
             </div>
             <div class="form-group">
                 <label>설정동 4:</label>
-                <input type="text" id="dong4" value="망우동">
+                <input type="text" id="dong4" value="">
             </div>
         </div>
 
         <div class="form-row">
             <div class="form-group">
                 <label>설정동 5:</label>
-                <input type="text" id="dong5" value="신내동">
+                <input type="text" id="dong5" value="">
             </div>
             <div class="form-group">
                 <label>설정동 6:</label>
@@ -151,6 +151,29 @@
             <div class="form-group" style="flex: 1;">
                 <label>Google Maps API 키:</label>
                 <input type="text" id="googleMapsKey" placeholder="Google Maps API 키 입력" style="width: 100%;">
+            </div>
+        </div>
+
+        <!-- Gemini API 키 -->
+        <div class="form-row">
+            <div class="form-group" style="flex: 1;">
+                <label>Gemini API 키:</label>
+                <input type="text" id="geminiKey" placeholder="Gemini API 키 입력" style="width: 100%;" value="AIzaSyCc-BG2joboORfy1EN9SXN3g7KCA5pFVaw">
+            </div>
+        </div>
+
+        <!-- AI 모델 선택 -->
+        <div class="form-row">
+            <div class="form-group" style="flex: 1;">
+                <label>AI 모델 선택:</label>
+                <select id="aiModel" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; font-size: 14px; background: #fff;">
+                    <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                    <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                    <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                    <option value="gpt-4o">GPT-4o</option>
+                    <option value="gpt-4o-mini">GPT-4o Mini</option>
+                    <option value="claude-sonnet">Claude Sonnet</option>
+                </select>
             </div>
         </div>
 
