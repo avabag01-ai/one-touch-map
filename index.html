@@ -3,6 +3,10 @@
 
 <head>
     <meta charset="UTF-8">
+    <!-- 캐시 완전 무시 -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>원터치맵</title>
     <!-- PWA 설정 -->
@@ -10,7 +14,7 @@
     <link rel="apple-touch-icon" href="icon-192.png">
     <meta name="theme-color" content="#F9F9F9">
 
-    <link rel="stylesheet" href="main-style.css">
+    <link rel="stylesheet" href="main-style.css?v=20260226">
     <script>
         // 테마 즉시 적용 (깜빡임 방지)
         (function () { var t = localStorage.getItem('appTheme'); if (t) document.documentElement.setAttribute('data-theme', t); })();
@@ -130,11 +134,11 @@
             </div>
         </div>
 
-        <script src="config.js"></script>
-        <script src="anchor-system.js"></script>
-        <script src="national-regions.js"></script>
-        <script src="ocr-app.js"></script>
-        <script src="main-app.js"></script>
+        <script src="config.js?v=20260226"></script>
+        <script src="anchor-system.js?v=20260226"></script>
+        <script src="national-regions.js?v=20260226"></script>
+        <script src="ocr-app.js?v=20260226"></script>
+        <script src="main-app.js?v=20260226"></script>
 </body>
 
 </html>

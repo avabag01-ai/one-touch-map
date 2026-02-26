@@ -3,11 +3,15 @@
 
 <head>
     <meta charset="UTF-8">
+    <!-- 캐시 완전 무시 -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>배송 리스트</title>
-    <link rel="stylesheet" href="list-style.css">
-    <link rel="stylesheet" href="main-style.css">
-    <script src="android-back.js"></script>
+    <link rel="stylesheet" href="list-style.css?v=20260226">
+    <link rel="stylesheet" href="main-style.css?v=20260226">
+    <script src="android-back.js?v=20260226"></script>
     <script>(function () { var t = localStorage.getItem('appTheme'); if (t) document.documentElement.setAttribute('data-theme', t); })();</script>
 </head>
 
@@ -35,20 +39,19 @@
         <button class="action-btn" id="carryoverBtn">
             이월
         </button>
+        <button class="action-btn" id="listToggleBtn" style="background:#673AB7; color:white;">
+            전체보기
+        </button>
     </div>
 
     <div class="full-width-btn">
         <button class="action-btn-full">선택한주소 사용자 변경</button>
     </div>
 
-    <!-- 레이어 저장 버튼 -->
+    <!-- 지금갈곳 관리 버튼 -->
     <div class="layer-buttons">
-        <button class="layer-btn" data-layer="1">L1</button>
-        <button class="layer-btn" data-layer="2">L2</button>
-        <button class="layer-btn" data-layer="3">L3</button>
-        <button class="layer-btn" data-layer="4">L4</button>
-        <button class="layer-btn" data-layer="5">L5</button>
-        <button class="layer-btn clear" data-layer="0">해제</button>
+        <button class="layer-btn" id="saveToNowBtn" style="flex: 2; background: #FF5252; color: white;">지금갈곳 저장</button>
+        <button class="layer-btn clear" id="clearNowBtn" style="flex: 1;">해제</button>
     </div>
 
     <!-- 배송 리스트 -->
@@ -74,9 +77,9 @@
     </div>
 
     <!-- 스크립트 -->
-    <script src="route-optimizer.js"></script>
-    <script src="anchor-system.js"></script>
-    <script src="list-app.js"></script>
+    <script src="route-optimizer.js?v=20260226"></script>
+    <script src="anchor-system.js?v=20260226"></script>
+    <script src="list-app.js?v=20260226"></script>
 </body>
 
 </html>
