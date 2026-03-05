@@ -134,9 +134,15 @@
             z-index: 1;
         }
 
-        /* VWorld 타일 - 배경 약간 어둡게 해서 글자 가시성 UP */
+        /* VWorld 타일 - 배경 채도 낮추고 도로와 대지 구분 강화 */
         .leaflet-tile {
-            filter: brightness(0.95) contrast(1.15);
+            filter: brightness(0.93) contrast(1.2) saturate(0.6);
+        }
+
+        /* 도로 오버레이 레이어 - 도로선 강조 */
+        .road-overlay-layer .leaflet-tile {
+            filter: contrast(1.8) saturate(1.5) brightness(1.1);
+            opacity: 0.45;
         }
 
         /* WMS 건물번호 레이어 확대 */
@@ -309,6 +315,17 @@
                 }
             ).addTo(map);
 
+            // VWorld Hybrid 오버레이 - 도로/경계선 강조 표시
+            vworldRoadOverlay = L.tileLayer(
+                'https://api.vworld.kr/req/wmts/1.0.0/EEB68327-5D04-3BE3-9072-D3ECFCCC26A2/Hybrid/{z}/{y}/{x}.png',
+                {
+                    maxZoom: 19,
+                    minZoom: 7,
+                    opacity: 0.45,
+                    className: 'road-overlay-layer'
+                }
+            ).addTo(map);
+
             // VWorld 도로명주소 건물번호 레이어 (lt_c_spbd)
             addressLayer = L.tileLayer.wms(
                 'https://api.vworld.kr/req/wms',
@@ -424,6 +441,10 @@
             if (vworldBaseLayer && map.hasLayer(vworldBaseLayer)) {
                 map.removeLayer(vworldBaseLayer);
             }
+            // VWorld 도로 오버레이 제거
+            if (vworldRoadOverlay && map.hasLayer(vworldRoadOverlay)) {
+                map.removeLayer(vworldRoadOverlay);
+            }
             // Google 지도 레이어 추가
             if (!map.hasLayer(googleLayer)) {
                 googleLayer.addTo(map);
@@ -441,6 +462,10 @@
             // VWorld 기본 레이어 추가
             if (vworldBaseLayer && !map.hasLayer(vworldBaseLayer)) {
                 vworldBaseLayer.addTo(map);
+            }
+            // VWorld 도로 오버레이 추가
+            if (vworldRoadOverlay && !map.hasLayer(vworldRoadOverlay)) {
+                vworldRoadOverlay.addTo(map);
             }
             currentBaseMap = 'vworld';
         }
@@ -613,6 +638,7 @@
 
         // VWorld 설정
         let vworldBaseLayer;
+        let vworldRoadOverlay; // 도로 강조 오버레이
         let addressLayer; // 도로명주소 레이어
         const VWORLD_KEY = (window.CONFIG && CONFIG.VWORLD_API_KEY) || 'EEB68327-5D04-3BE3-9072-D3ECFCCC26A2';
 
