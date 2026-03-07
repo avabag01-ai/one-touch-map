@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    style="@style/KeyboardStyle"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <androidx.emoji2.emojipicker.EmojiPickerView
+        android:id="@+id/emojiPickerView"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:theme="@style/EmojiPickerViewStyle"
+        app:layout_constraintHorizontal_chainStyle="spread"
+        app:layout_constraintHorizontal_weight="5.5"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toLeftOf="@+id/closeButton" />
+
+    <TextView
+        android:id="@+id/closeButton"
+        style="@style/KeyStyle"
+        android:text="@string/key_emoji_close"
+        android:textSize="20sp"
+        app:layout_constraintHorizontal_weight="1"
+        app:layout_constraintVertical_chainStyle="spread"
+        app:layout_constraintVertical_weight="0.7"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/backspaceKey"
+        app:layout_constraintLeft_toRightOf="@+id/emojiPickerView"
+        app:layout_constraintRight_toRightOf="parent" />
+
+    <TextView
+        android:id="@+id/backspaceKey"
+        style="@style/KeyStyle"
+        android:text="@string/key_backspace"
+        app:layout_constraintVertical_weight="1"
+        app:layout_constraintTop_toBottomOf="@+id/closeButton"
+        app:layout_constraintBottom_toTopOf="@+id/middleSpace"
+        app:layout_constraintLeft_toRightOf="@+id/emojiPickerView"
+        app:layout_constraintRight_toRightOf="parent" />
+
+    <Space
+        android:id="@+id/middleSpace"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintVertical_weight="2"
+        app:layout_constraintTop_toBottomOf="@+id/backspaceKey"
+        app:layout_constraintBottom_toTopOf="@+id/enterKey"
+        app:layout_constraintLeft_toRightOf="@+id/emojiPickerView"
+        app:layout_constraintRight_toRightOf="parent" />
+
+    <TextView
+        android:id="@+id/enterKey"
+        style="@style/KeyStyle"
+        android:text="@string/key_enter"
+        app:layout_constraintVertical_weight="1"
+        app:layout_constraintTop_toBottomOf="@+id/middleSpace"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toRightOf="@+id/emojiPickerView"
+        app:layout_constraintRight_toRightOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

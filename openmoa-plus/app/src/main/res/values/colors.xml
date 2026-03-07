@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <color name="keyboard_background">#DDDDDD</color>
+    <color name="key_background">#FFFFFF</color>
+    <color name="key_background_pressed">#EEEEEE</color>
+    <color name="key_foreground">#000000</color>
+    <color name="key_foreground_muted">#444444</color>
+    <color name="key_foreground_locked">#5E97EE</color>
+
+</resources>
