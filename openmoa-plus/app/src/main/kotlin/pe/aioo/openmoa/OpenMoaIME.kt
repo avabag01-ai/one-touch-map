@@ -364,23 +364,27 @@ class OpenMoaIME : InputMethodService(), KoinComponent {
                             binding.previewText.visibility = View.VISIBLE
                         }
                         if (config.showRadialOverlay) {
-                            val cx = intent.getFloatExtra("centerX", 0f)
-                            val cy = intent.getFloatExtra("centerY", 0f)
-                            val overlay = binding.keyboardFrameLayout.radialOverlay
-                            val loc = IntArray(2)
-                            overlay.getLocationOnScreen(loc)
-                            val hints = gestureKey?.let { k ->
-                                HangulHintData.getHintsForKey(k)
-                            } ?: emptyMap()
-                            overlay.setShowHints(config.showHint)
-                            overlay.show(cx - loc[0], cy - loc[1], gestureKey ?: "", hints)
+                            try {
+                                val cx = intent.getFloatExtra("centerX", 0f)
+                                val cy = intent.getFloatExtra("centerY", 0f)
+                                val overlay = binding.keyboardFrameLayout.radialOverlay
+                                val loc = IntArray(2)
+                                overlay.getLocationOnScreen(loc)
+                                val hints = gestureKey?.let { k ->
+                                    HangulHintData.getHintsForKey(k)
+                                } ?: emptyMap()
+                                overlay.setShowHints(config.showHint)
+                                overlay.show(cx - loc[0], cy - loc[1], gestureKey ?: "", hints)
+                            } catch (_: Exception) { }
                         }
                     }
                     "move" -> {
                         val direction = intent.getStringExtra("direction")
                         val previewMoeum = intent.getStringExtra("previewMoeum")
                         if (config.showRadialOverlay && direction != null) {
-                            binding.keyboardFrameLayout.radialOverlay.updateDirection(direction)
+                            try {
+                                binding.keyboardFrameLayout.radialOverlay.updateDirection(direction)
+                            } catch (_: Exception) { }
                         }
                         if (previewMoeum != null && previewMoeum.isNotEmpty() && previewMoeum != lastPreviewMoeum) {
                             lastPreviewMoeum = previewMoeum
@@ -403,7 +407,9 @@ class OpenMoaIME : InputMethodService(), KoinComponent {
                             binding.previewText.text = ""
                         }
                         if (config.showRadialOverlay) {
-                            binding.keyboardFrameLayout.radialOverlay.hide()
+                            try {
+                                binding.keyboardFrameLayout.radialOverlay.hide()
+                            } catch (_: Exception) { }
                         }
                         if (config.realtimeComposing) {
                             if (composingText.isNotEmpty()) {

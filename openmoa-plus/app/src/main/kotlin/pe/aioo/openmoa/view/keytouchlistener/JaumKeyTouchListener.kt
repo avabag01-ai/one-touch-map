@@ -7,6 +7,7 @@ import android.view.MotionEvent
 import android.view.View
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import pe.aioo.openmoa.OpenMoaIME
+import pe.aioo.openmoa.config.Config
 import pe.aioo.openmoa.hangul.MoeumGestureProcessor
 import pe.aioo.openmoa.view.message.SpecialKey
 import pe.aioo.openmoa.view.message.SpecialKeyMessage
@@ -17,6 +18,11 @@ class JaumKeyTouchListener(
     context: Context,
     private val key: String,
 ) : BaseKeyTouchListener(context) {
+
+    // Read sensitivity from SharedPreferences directly (avoids Koin context issues)
+    private val gestureThresholdFromPrefs: Float = context
+        .getSharedPreferences(Config.PREFS_NAME, Context.MODE_PRIVATE)
+        .getFloat(Config.KEY_SENSITIVITY, Config.SENSITIVITY_MEDIUM)
 
     // Original touch point - never reset during a gesture
     private var originX: Float = 0f
@@ -82,13 +88,13 @@ class JaumKeyTouchListener(
                 )
 
                 // Only activate gesture recognition once total distance exceeds threshold
-                if (distFromOrigin > config.gestureThreshold) {
+                if (distFromOrigin > gestureThresholdFromPrefs) {
                     // For direction calculation, use distance from last tracking point
                     val distFromLast = sqrt(
                         (currentX - startX).pow(2) + (currentY - startY).pow(2)
                     )
                     // Use a smaller threshold for subsequent direction changes
-                    val segmentThreshold = if (gestureActivated) 30f else config.gestureThreshold
+                    val segmentThreshold = if (gestureActivated) 30f else gestureThresholdFromPrefs
                     if (distFromLast > segmentThreshold) {
                         val degree = (atan2(currentY - startY, currentX - startX) * 180f) / PI
                         startX = currentX

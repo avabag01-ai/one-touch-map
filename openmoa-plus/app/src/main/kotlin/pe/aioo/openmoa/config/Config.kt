@@ -1,7 +1,6 @@
 package pe.aioo.openmoa.config
 
 import android.content.Context
-import android.content.SharedPreferences
 
 data class Config(
     val longPressRepeatTime: Long = 50L,
@@ -19,16 +18,9 @@ data class Config(
         const val PREFS_NAME = "openmoa_settings"
         const val KEY_SENSITIVITY = "gesture_sensitivity"
 
-        // Sensitivity levels: minimum distance (px) from original touch point
         const val SENSITIVITY_SHORT = 40f
         const val SENSITIVITY_MEDIUM = 80f
         const val SENSITIVITY_LONG = 120f
-
-        fun fromPreferences(context: Context): Config {
-            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            val sensitivity = prefs.getFloat(KEY_SENSITIVITY, SENSITIVITY_MEDIUM)
-            return Config(gestureThreshold = sensitivity)
-        }
 
         fun saveSensitivity(context: Context, value: Float) {
             context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
