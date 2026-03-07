@@ -1,4 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <input-method xmlns:android="http://schemas.android.com/apk/res/android"
     android:icon="@mipmap/ic_launcher"
-    android:supportsInlineSuggestions="true" />
+    android:supportsInlineSuggestions="true">
+
+    <!-- 한국어 서브타입 -->
+    <subtype
+        android:label="@string/subtype_ko"
+        android:languageTag="ko"
+        android:imeSubtypeLocale="ko"
+        android:imeSubtypeMode="keyboard" />
+
+    <!-- 영어 서브타입 -->
+    <subtype
+        android:label="@string/subtype_en"
+        android:languageTag="en-US"
+        android:imeSubtypeLocale="en_US"
+        android:imeSubtypeMode="keyboard" />
+
+</input-method>
