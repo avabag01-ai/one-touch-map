@@ -1,0 +1,64 @@
+name: Build OpenMoa+ APK
+
+on:
+  push:
+    paths:
+      - 'openmoa-plus/**'
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: openmoa-plus
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Run Unit Tests
+        run: ./gradlew testDebugUnitTest
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openmoa-plus-debug
+          path: openmoa-plus/app/build/outputs/apk/debug/*.apk
+
+      - name: Get short SHA
+        id: sha
+        run: echo "short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: openmoa-plus-v1.0.${{ github.run_number }}
+          name: "OpenMoa+ Build #${{ github.run_number }} (${{ steps.sha.outputs.short }})"
+          body: |
+            ## OpenMoa+ 자동 빌드
+
+            APK를 다운로드해서 안드로이드 폰에 설치하세요.
+
+            ### 설치 방법
+            1. 아래 APK 파일 다운로드
+            2. 폰에서 "알 수 없는 앱 설치" 허용
+            3. APK 설치
+            4. 설정 → 시스템 → 언어 및 입력 → 화상 키보드 → OpenMoa 활성화
+            5. 키보드 전환해서 사용
+          files: openmoa-plus/app/build/outputs/apk/debug/*.apk
+          make_latest: true
