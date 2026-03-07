@@ -69,5 +69,9 @@
     <string name="key_zero">0</string>
     <string name="subtype_ko">한국어</string>
     <string name="subtype_en">English</string>
+    <string name="setup_step1">1단계: 키보드 활성화</string>
+    <string name="setup_step2">2단계: 키보드 선택</string>
+    <string name="setup_status_enabled">키보드가 활성화되어 있습니다. 아래 버튼으로 선택하세요.</string>
+    <string name="setup_status_disabled">키보드를 먼저 활성화해주세요.</string>
 
 </resources>

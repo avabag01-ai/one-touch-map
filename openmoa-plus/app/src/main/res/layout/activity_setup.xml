@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="32dp"
+    android:background="@color/keyboard_background">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/app_name"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        android:textColor="@color/key_foreground"
+        android:layout_marginBottom="16dp" />
+
+    <TextView
+        android:id="@+id/tvStatus"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/setup_status_disabled"
+        android:textSize="16sp"
+        android:textColor="@color/key_foreground_muted"
+        android:layout_marginBottom="32dp" />
+
+    <Button
+        android:id="@+id/btnEnableKeyboard"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/setup_step1"
+        android:textSize="16sp"
+        android:layout_marginBottom="16dp" />
+
+    <Button
+        android:id="@+id/btnSelectKeyboard"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/setup_step2"
+        android:textSize="16sp"
+        android:enabled="false" />
+
+</LinearLayout>
