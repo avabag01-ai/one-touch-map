@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>탈모제약 R&D 대시보드 | HairGen Pharma</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #1a73e8;
+            --primary-dark: #1557b0;
+            --success: #0d9488;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg: #f0f4f8;
+            --card: #ffffff;
+            --text: #1e293b;
+            --text-light: #64748b;
+            --border: #e2e8f0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #1a73e8 0%, #6366f1 100%);
+            color: white;
+            padding: 20px 24px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+        .header h1 { font-size: 22px; font-weight: 700; }
+        .header p { font-size: 13px; opacity: 0.85; margin-top: 4px; }
+        /* Nav Tabs */
+        .nav-tabs {
+            display: flex;
+            background: white;
+            border-bottom: 2px solid var(--border);
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .nav-tab {
+            flex: 1;
+            min-width: 80px;
+            padding: 14px 8px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-light);
+            border: none;
+            background: none;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .nav-tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+        .nav-tab:hover { color: var(--primary); }
+        /* Content */
+        .content { padding: 16px; max-width: 1200px; margin: 0 auto; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        /* Cards */
+        .card {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            border: 1px solid var(--border);
+        }
+        .card-title {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .stat-card {
+            background: var(--card);
+            border-radius: 14px;
+            padding: 16px;
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .stat-label { font-size: 12px; color: var(--text-light); margin-bottom: 4px; }
+        .stat-value { font-size: 24px; font-weight: 800; }
+        .stat-change { font-size: 11px; margin-top: 4px; }
+        .stat-change.up { color: var(--success); }
+        .stat-change.down { color: var(--danger); }
+        /* Pipeline */
+        .pipeline-item {
+            display: flex;
+            align-items: center;
+            padding: 14px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .pipeline-item:last-child { border-bottom: none; }
+        .pipeline-phase {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            min-width: 70px;
+            text-align: center;
+        }
+        .phase-discovery { background: #dbeafe; color: #1d4ed8; }
+        .phase-preclinical { background: #fef3c7; color: #92400e; }
+        .phase-phase1 { background: #fed7aa; color: #9a3412; }
+        .phase-phase2 { background: #d1fae5; color: #065f46; }
+        .phase-phase3 { background: #c7d2fe; color: #3730a3; }
+        .phase-approved { background: #bbf7d0; color: #166534; }
+        .pipeline-info { flex: 1; margin-left: 12px; }
+        .pipeline-name { font-weight: 700; font-size: 14px; }
+        .pipeline-target { font-size: 12px; color: var(--text-light); margin-top: 2px; }
+        .pipeline-progress { width: 60px; text-align: right; }
+        .pipeline-progress span { font-size: 13px; font-weight: 700; color: var(--primary); }
+        /* Progress Bar */
+        .progress-bar {
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+        .progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 1s ease;
+        }
+        /* Compound Table */
+        .compound-grid { display: flex; flex-direction: column; gap: 10px; }
+        .compound-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 14px;
+            background: #f8fafc;
+            border-radius: 12px;
+            align-items: center;
+            border: 1px solid var(--border);
+        }
+        .compound-id {
+            font-family: monospace;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--primary);
+            min-width: 100px;
+        }
+        .compound-name { font-weight: 600; flex: 1; min-width: 120px; }
+        .compound-efficacy {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+        }
+        .efficacy-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        .compound-meta {
+            font-size: 12px;
+            color: var(--text-light);
+            width: 100%;
+            margin-top: 4px;
+        }
+        /* Chart */
+        .chart-container {
+            position: relative;
+            height: 200px;
+            margin-top: 12px;
+        }
+        .bar-chart {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-around;
+            height: 180px;
+            padding: 0 10px;
+            border-bottom: 2px solid var(--border);
+        }
+        .bar-group { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+        .bar {
+            width: 32px;
+            border-radius: 6px 6px 0 0;
+            transition: height 1s ease;
+            position: relative;
+        }
+        .bar-label {
+            font-size: 11px;
+            color: var(--text-light);
+            text-align: center;
+        }
+        .bar-value {
+            font-size: 11px;
+            font-weight: 700;
+            text-align: center;
+        }
+        /* Form */
+        .form-group { margin-bottom: 14px; }
+        .form-label { font-size: 13px; font-weight: 600; margin-bottom: 6px; display: block; }
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 12px 14px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+            background: white;
+            font-family: inherit;
+        }
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        .form-textarea { min-height: 80px; resize: vertical; }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-success { background: var(--success); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-block { width: 100%; }
+        /* News Feed */
+        .news-item {
+            padding: 14px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .news-item:last-child { border-bottom: none; }
+        .news-date { font-size: 11px; color: var(--text-light); }
+        .news-title { font-size: 14px; font-weight: 700; margin: 4px 0; }
+        .news-summary { font-size: 13px; color: var(--text-light); line-height: 1.5; }
+        .news-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 700;
+            margin-top: 6px;
+        }
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: #1e293b;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 1000;
+            opacity: 0;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+        /* Responsive */
+        @media (min-width: 768px) {
+            .stats-grid { grid-template-columns: repeat(4, 1fr); }
+            .bar { width: 48px; }
+        }
+        /* Animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .card { animation: fadeIn 0.4s ease; }
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal {
+            background: white;
+            border-radius: 20px;
+            padding: 24px;
+            width: 100%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-title { font-size: 18px; font-weight: 800; margin-bottom: 16px; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>HairGen Pharma R&D</h1>
+    <p>탈모 치료제 연구개발 대시보드 v1.0</p>
+</div>
+
+<nav class="nav-tabs">
+    <button class="nav-tab active" data-tab="dashboard" onclick="switchTab('dashboard')">대시보드</button>
+    <button class="nav-tab" data-tab="pipeline" onclick="switchTab('pipeline')">파이프라인</button>
+    <button class="nav-tab" data-tab="compounds" onclick="switchTab('compounds')">화합물DB</button>
+    <button class="nav-tab" data-tab="trials" onclick="switchTab('trials')">임상시험</button>
+    <button class="nav-tab" data-tab="news" onclick="switchTab('news')">뉴스/동향</button>
+</nav>
+
+<div class="content">
+
+    <!-- Dashboard Tab -->
+    <div id="tab-dashboard" class="tab-content active">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">파이프라인 후보물질</div>
+                <div class="stat-value" style="color: var(--primary);">12</div>
+                <div class="stat-change up">+3 신규 발굴</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">임상시험 진행중</div>
+                <div class="stat-value" style="color: var(--success);">4</div>
+                <div class="stat-change up">Phase 2 진입 1건</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">R&D 투자액</div>
+                <div class="stat-value" style="color: var(--warning);">₩28B</div>
+                <div class="stat-change up">+15% YoY</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">특허 출원/등록</div>
+                <div class="stat-value" style="color: #6366f1;">17</div>
+                <div class="stat-change up">+5 금년</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">타겟별 연구 현황</div>
+            <div class="chart-container">
+                <div class="bar-chart" id="targetChart"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">최근 연구 하이라이트</div>
+            <div class="pipeline-item">
+                <div class="pipeline-phase phase-phase2">Phase 2</div>
+                <div class="pipeline-info">
+                    <div class="pipeline-name">HG-401 (Wnt 활성제)</div>
+                    <div class="pipeline-target">12주차 모발 밀도 34% 개선 확인</div>
+                </div>
+            </div>
+            <div class="pipeline-item">
+                <div class="pipeline-phase phase-discovery">발굴</div>
+                <div class="pipeline-info">
+                    <div class="pipeline-name">HG-710 (엑소좀 기반)</div>
+                    <div class="pipeline-target">줄기세포 엑소좀 기반 신규 후보물질 도출</div>
+                </div>
+            </div>
+            <div class="pipeline-item">
+                <div class="pipeline-phase phase-preclinical">전임상</div>
+                <div class="pipeline-info">
+                    <div class="pipeline-name">HG-305 (JAK 억제제)</div>
+                    <div class="pipeline-target">마우스 모델 모낭 재생 82% 달성</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">글로벌 탈모 시장 전망</div>
+            <div style="text-align: center; padding: 10px 0;">
+                <div style="font-size: 32px; font-weight: 800; color: var(--primary);">$13.8B</div>
+                <div style="font-size: 13px; color: var(--text-light); margin-top: 4px;">2030년 예상 시장 규모 (CAGR 8.1%)</div>
+            </div>
+            <div class="progress-bar" style="margin-top: 12px;">
+                <div class="progress-fill" style="width: 65%; background: linear-gradient(90deg, #1a73e8, #6366f1);"></div>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-top: 6px; font-size: 11px; color: var(--text-light);">
+                <span>2024: $8.5B</span>
+                <span>2030: $13.8B</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pipeline Tab -->
+    <div id="tab-pipeline" class="tab-content">
+        <div class="card">
+            <div class="card-title">신약 개발 파이프라인</div>
+            <div id="pipelineList"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">단계별 분포</div>
+            <div class="stats-grid">
+                <div class="stat-card" style="border-left: 4px solid #1d4ed8;">
+                    <div class="stat-label">후보물질 발굴</div>
+                    <div class="stat-value">5</div>
+                </div>
+                <div class="stat-card" style="border-left: 4px solid #f59e0b;">
+                    <div class="stat-label">전임상</div>
+                    <div class="stat-value">3</div>
+                </div>
+                <div class="stat-card" style="border-left: 4px solid #ea580c;">
+                    <div class="stat-label">Phase 1</div>
+                    <div class="stat-value">2</div>
+                </div>
+                <div class="stat-card" style="border-left: 4px solid #0d9488;">
+                    <div class="stat-label">Phase 2+</div>
+                    <div class="stat-value">2</div>
+                </div>
+            </div>
+        </div>
+
+        <button class="btn btn-primary btn-block" onclick="openModal('addPipeline')">
+            + 새 파이프라인 항목 추가
+        </button>
+    </div>
+
+    <!-- Compounds Tab -->
+    <div id="tab-compounds" class="tab-content">
+        <div class="card">
+            <div class="card-title">화합물 데이터베이스</div>
+            <div class="form-group">
+                <input type="text" class="form-input" id="compoundSearch" placeholder="화합물 ID 또는 이름 검색..." oninput="filterCompounds()">
+            </div>
+            <div class="compound-grid" id="compoundList"></div>
+        </div>
+
+        <button class="btn btn-primary btn-block" onclick="openModal('addCompound')">
+            + 새 화합물 등록
+        </button>
+    </div>
+
+    <!-- Clinical Trials Tab -->
+    <div id="tab-trials" class="tab-content">
+        <div class="card">
+            <div class="card-title">진행중 임상시험</div>
+            <div id="trialsList"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">임상시험 성공률 분석</div>
+            <div class="chart-container">
+                <div class="bar-chart" id="trialChart"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">주요 엔드포인트 달성 현황</div>
+            <div id="endpointList"></div>
+        </div>
+    </div>
+
+    <!-- News Tab -->
+    <div id="tab-news" class="tab-content">
+        <div class="card">
+            <div class="card-title">탈모 치료제 개발 동향</div>
+            <div id="newsList"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Add Pipeline Modal -->
+<div class="modal-overlay" id="modal-addPipeline">
+    <div class="modal">
+        <div class="modal-title">새 파이프라인 항목</div>
+        <div class="form-group">
+            <label class="form-label">화합물 코드</label>
+            <input type="text" class="form-input" id="newPipelineCode" placeholder="예: HG-801">
+        </div>
+        <div class="form-group">
+            <label class="form-label">화합물 이름</label>
+            <input type="text" class="form-input" id="newPipelineName" placeholder="예: Wnt 경로 활성화제">
+        </div>
+        <div class="form-group">
+            <label class="form-label">작용 타겟</label>
+            <select class="form-select" id="newPipelineTarget">
+                <option value="Wnt/β-catenin">Wnt/β-catenin 경로</option>
+                <option value="JAK/STAT">JAK/STAT 경로</option>
+                <option value="DHT">DHT 억제</option>
+                <option value="모낭줄기세포">모낭 줄기세포</option>
+                <option value="성장인자">성장인자 (VEGF/FGF)</option>
+                <option value="엑소좀">엑소좀/세포외소포</option>
+                <option value="기타">기타</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">개발 단계</label>
+            <select class="form-select" id="newPipelinePhase">
+                <option value="discovery">후보물질 발굴</option>
+                <option value="preclinical">전임상</option>
+                <option value="phase1">Phase 1</option>
+                <option value="phase2">Phase 2</option>
+                <option value="phase3">Phase 3</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">적응증</label>
+            <select class="form-select" id="newPipelineIndication">
+                <option value="AGA">남성형 탈모 (AGA)</option>
+                <option value="AA">원형 탈모 (AA)</option>
+                <option value="FPHL">여성형 탈모 (FPHL)</option>
+                <option value="TE">휴지기 탈모 (TE)</option>
+                <option value="ALL">전체 탈모 유형</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">메모</label>
+            <textarea class="form-textarea" id="newPipelineMemo" placeholder="추가 메모..."></textarea>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button class="btn btn-primary" style="flex:1;" onclick="addPipelineItem()">추가</button>
+            <button class="btn btn-danger" style="flex:1;" onclick="closeModal('addPipeline')">취소</button>
+        </div>
+    </div>
+</div>
+
+<!-- Add Compound Modal -->
+<div class="modal-overlay" id="modal-addCompound">
+    <div class="modal">
+        <div class="modal-title">새 화합물 등록</div>
+        <div class="form-group">
+            <label class="form-label">화합물 ID</label>
+            <input type="text" class="form-input" id="newCompoundId" placeholder="예: HG-901">
+        </div>
+        <div class="form-group">
+            <label class="form-label">화합물 이름</label>
+            <input type="text" class="form-input" id="newCompoundName" placeholder="화합물 이름">
+        </div>
+        <div class="form-group">
+            <label class="form-label">분자식</label>
+            <input type="text" class="form-input" id="newCompoundFormula" placeholder="예: C₂₁H₃₀N₆O₃">
+        </div>
+        <div class="form-group">
+            <label class="form-label">작용기전</label>
+            <textarea class="form-textarea" id="newCompoundMechanism" placeholder="작용기전 설명..."></textarea>
+        </div>
+        <div class="form-group">
+            <label class="form-label">효능 등급</label>
+            <select class="form-select" id="newCompoundEfficacy">
+                <option value="high">높음 (A)</option>
+                <option value="medium">보통 (B)</option>
+                <option value="low">낮음 (C)</option>
+                <option value="unknown">미확인</option>
+            </select>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button class="btn btn-primary" style="flex:1;" onclick="addCompound()">등록</button>
+            <button class="btn btn-danger" style="flex:1;" onclick="closeModal('addCompound')">취소</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ======== Data Store ========
+const STORAGE_KEY = 'hairgen_pharma_data';
+
+function loadData() {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) return JSON.parse(saved);
+    return getDefaultData();
+}
+
+function saveData(data) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function getDefaultData() {
+    return {
+        pipeline: [
+            { code: 'HG-401', name: 'Wnt 활성제 (경구)', target: 'Wnt/β-catenin', phase: 'phase2', indication: 'AGA', progress: 68, memo: '12주차 모발 밀도 34% 개선' },
+            { code: 'HG-205', name: 'Finasteride 차세대', target: 'DHT', phase: 'phase1', indication: 'AGA', progress: 45, memo: '부작용 최소화 제형' },
+            { code: 'HG-305', name: 'Ruxolitinib 유도체', target: 'JAK/STAT', phase: 'preclinical', indication: 'AA', progress: 60, memo: '마우스 모델 모낭 재생 82%' },
+            { code: 'HG-112', name: '미녹시딜 나노제형', target: '성장인자', phase: 'phase1', indication: 'ALL', progress: 35, memo: '경피 흡수율 3배 향상' },
+            { code: 'HG-510', name: 'VEGF 촉진제', target: '성장인자', phase: 'preclinical', indication: 'FPHL', progress: 40, memo: '혈관신생 촉진으로 모낭 환경 개선' },
+            { code: 'HG-620', name: 'DPC 세포 활성제', target: '모낭줄기세포', phase: 'discovery', indication: 'AGA', progress: 20, memo: '진피유두세포 활성화 기전' },
+            { code: 'HG-710', name: '엑소좀 치료제', target: '엑소좀', phase: 'discovery', indication: 'ALL', progress: 15, memo: '줄기세포 유래 엑소좀' },
+            { code: 'HG-330', name: 'PGE2 유도체', target: '기타', phase: 'preclinical', indication: 'AGA', progress: 50, memo: '프로스타글란딘 E2 경로' },
+            { code: 'HG-815', name: 'SHH 경로 활성제', target: 'Wnt/β-catenin', phase: 'discovery', indication: 'AGA', progress: 10, memo: 'Sonic hedgehog 신호전달' },
+            { code: 'HG-420', name: '복합 성장인자 칵테일', target: '성장인자', phase: 'phase2', indication: 'FPHL', progress: 55, memo: 'bFGF+IGF-1+VEGF 복합제' },
+            { code: 'HG-225', name: '17α-에스트라디올 유도체', target: 'DHT', phase: 'discovery', indication: 'FPHL', progress: 18, memo: '호르몬 경로 조절' },
+            { code: 'HG-550', name: '마이크로RNA 치료제', target: '모낭줄기세포', phase: 'discovery', indication: 'ALL', progress: 8, memo: 'miR-218-5p 기반 모낭 재생' },
+        ],
+        compounds: [
+            { id: 'HG-401', name: 'Hairgenol-A', formula: 'C₂₄H₂₈N₄O₃S', mechanism: 'Wnt/β-catenin 경로 활성화, GSK-3β 억제를 통한 β-catenin 안정화', efficacy: 'high', mw: '468.57', logP: '2.8' },
+            { id: 'HG-205', name: 'NeoDuta-5α', formula: 'C₂₃H₃₆N₂O₂', mechanism: '5α-reductase type I/II 이중 억제, DHT 전환 차단', efficacy: 'high', mw: '372.55', logP: '3.1' },
+            { id: 'HG-305', name: 'Follickinib', formula: 'C₁₈H₂₂N₆O', mechanism: 'JAK1/JAK2 선택적 억제, 면역 관련 탈모 억제', efficacy: 'medium', mw: '338.41', logP: '1.9' },
+            { id: 'HG-112', name: 'NanoMinox-XR', formula: 'C₉H₁₅N₅O (나노입자)', mechanism: '칼륨 채널 개방, 혈관 확장, 나노리포좀 전달체', efficacy: 'high', mw: '209.25', logP: '0.5' },
+            { id: 'HG-510', name: 'Angiofollin', formula: 'C₁₉H₂₁N₃O₄', mechanism: 'VEGF 수용체 작용제, 모유두 혈관 신생 촉진', efficacy: 'medium', mw: '355.39', logP: '2.2' },
+            { id: 'HG-710', name: 'ExoHair-V1', formula: '세포외소포 복합체', mechanism: 'MSC 유래 엑소좀, 모낭 줄기세포 활성화 인자 전달', efficacy: 'unknown', mw: 'N/A', logP: 'N/A' },
+            { id: 'HG-330', name: 'Prostaglandin-HR', formula: 'C₂₀H₃₂O₅', mechanism: 'PGE2 수용체 EP2/EP4 작용, 모주기 성장기 유도', efficacy: 'medium', mw: '352.47', logP: '2.6' },
+            { id: 'HG-550', name: 'MiR-Follix', formula: 'RNA 올리고뉴클레오타이드', mechanism: 'miR-218-5p 모방체, SFRP2 억제 → Wnt 신호 활성', efficacy: 'unknown', mw: '~7,200', logP: 'N/A' },
+        ],
+        trials: [
+            { code: 'HG-401', title: 'HAIR-GROW-201', phase: 'Phase 2', status: '진행중', enrolled: 240, target: 300, sites: 8, startDate: '2025-06', primaryEndpoint: '24주 TAHC 변화량', endpointMet: null },
+            { code: 'HG-205', title: 'NEODUTA-101', phase: 'Phase 1', status: '진행중', enrolled: 48, target: 48, sites: 2, startDate: '2025-09', primaryEndpoint: '안전성/내약성/PK', endpointMet: null },
+            { code: 'HG-112', title: 'NANOMINOX-102', phase: 'Phase 1', status: '진행중', enrolled: 30, target: 60, sites: 3, startDate: '2025-11', primaryEndpoint: '피부 흡수율/안전성', endpointMet: null },
+            { code: 'HG-420', title: 'GROWTH-201', phase: 'Phase 2', status: '진행중', enrolled: 180, target: 250, sites: 6, startDate: '2025-03', primaryEndpoint: '16주 모발 밀도 변화', endpointMet: null },
+        ],
+        news: [
+            { date: '2026-03-05', title: 'JAK 억제제 기반 원형탈모 치료제, FDA 승인 확대', summary: '토파시티닙 계열 JAK 억제제가 중증 원형탈모 적응증으로 FDA 승인을 획득. 탈모 치료제 시장 성장에 긍정적 신호.', tag: '규제', tagColor: '#dbeafe', tagText: '#1d4ed8' },
+            { date: '2026-03-03', title: '줄기세포 엑소좀 기반 탈모 치료, 전임상서 획기적 결과', summary: '일본 연구팀이 MSC 유래 엑소좀 두피 주입 시 모낭 줄기세포 활성화율 156% 증가 확인. HG-710 개발에 참고.', tag: '연구', tagColor: '#d1fae5', tagText: '#065f46' },
+            { date: '2026-02-28', title: '글로벌 탈모 시장 2030년 $13.8B 전망 보고서 발표', summary: 'Grand View Research 발표. 아시아태평양 시장 성장률 가장 높아 (CAGR 9.2%). 바이오시밀러 및 신규 기전 치료제 수요 증가.', tag: '시장', tagColor: '#fef3c7', tagText: '#92400e' },
+            { date: '2026-02-25', title: 'Wnt 경로 표적 탈모 치료제 Phase 2 중간 분석 긍정적', summary: 'HG-401 Phase 2 중간 분석에서 위약 대비 모발 밀도 34% 유의한 개선. 24주 최종 데이터 2026년 Q3 발표 예정.', tag: '임상', tagColor: '#fed7aa', tagText: '#9a3412' },
+            { date: '2026-02-20', title: 'mRNA 기반 탈모 치료 접근법 특허 출원', summary: 'HairGen Pharma, 모낭 성장인자 mRNA를 LNP로 전달하는 신규 접근법 PCT 국제출원 완료. 전임상 데이터 2026년 하반기 예정.', tag: '특허', tagColor: '#c7d2fe', tagText: '#3730a3' },
+            { date: '2026-02-15', title: '미녹시딜 나노제형, 기존 대비 경피 흡수율 3배 향상', summary: 'HG-112 NanoMinox-XR의 Phase 1 중간 결과: 나노리포좀 제형이 기존 미녹시딜 대비 피부 투과율 310% 향상.', tag: '임상', tagColor: '#fed7aa', tagText: '#9a3412' },
+        ]
+    };
+}
+
+let appData = loadData();
+
+// ======== Tab Switching ========
+function switchTab(tabName) {
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-' + tabName).classList.add('active');
+    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+}
+
+// ======== Rendering ========
+function renderPipeline() {
+    const container = document.getElementById('pipelineList');
+    const phaseLabels = { discovery: '발굴', preclinical: '전임상', phase1: 'Phase 1', phase2: 'Phase 2', phase3: 'Phase 3', approved: '승인' };
+    const phaseClasses = { discovery: 'phase-discovery', preclinical: 'phase-preclinical', phase1: 'phase-phase1', phase2: 'phase-phase2', phase3: 'phase-phase3', approved: 'phase-approved' };
+    const phaseOrder = { discovery: 0, preclinical: 1, phase1: 2, phase2: 3, phase3: 4, approved: 5 };
+
+    const sorted = [...appData.pipeline].sort((a, b) => phaseOrder[b.phase] - phaseOrder[a.phase]);
+
+    container.innerHTML = sorted.map(item => `
+        <div class="pipeline-item">
+            <div class="pipeline-phase ${phaseClasses[item.phase]}">${phaseLabels[item.phase]}</div>
+            <div class="pipeline-info">
+                <div class="pipeline-name">${item.code} - ${item.name}</div>
+                <div class="pipeline-target">${item.target} | ${item.indication} | ${item.memo}</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: ${item.progress}%; background: linear-gradient(90deg, #1a73e8, #6366f1);"></div>
+                </div>
+            </div>
+            <div class="pipeline-progress"><span>${item.progress}%</span></div>
+        </div>
+    `).join('');
+}
+
+function renderCompounds(filter = '') {
+    const container = document.getElementById('compoundList');
+    const efficacyColors = { high: '#10b981', medium: '#f59e0b', low: '#ef4444', unknown: '#94a3b8' };
+    const efficacyLabels = { high: '높음', medium: '보통', low: '낮음', unknown: '미확인' };
+
+    const filtered = appData.compounds.filter(c =>
+        !filter || c.id.toLowerCase().includes(filter.toLowerCase()) || c.name.toLowerCase().includes(filter.toLowerCase())
+    );
+
+    container.innerHTML = filtered.map(c => `
+        <div class="compound-row">
+            <div class="compound-id">${c.id}</div>
+            <div class="compound-name">${c.name}</div>
+            <div class="compound-efficacy">
+                <div class="efficacy-dot" style="background: ${efficacyColors[c.efficacy]};"></div>
+                효능: ${efficacyLabels[c.efficacy]}
+            </div>
+            <div class="compound-meta">
+                <strong>분자식:</strong> ${c.formula} | <strong>MW:</strong> ${c.mw} | <strong>LogP:</strong> ${c.logP}<br>
+                <strong>기전:</strong> ${c.mechanism}
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderTrials() {
+    const container = document.getElementById('trialsList');
+    container.innerHTML = appData.trials.map(t => {
+        const pct = Math.round((t.enrolled / t.target) * 100);
+        return `
+        <div class="pipeline-item" style="flex-wrap: wrap;">
+            <div class="pipeline-phase phase-phase${t.phase.includes('1') ? '1' : '2'}">${t.phase}</div>
+            <div class="pipeline-info">
+                <div class="pipeline-name">${t.title} (${t.code})</div>
+                <div class="pipeline-target">
+                    등록: ${t.enrolled}/${t.target}명 | ${t.sites}개 기관 | 시작: ${t.startDate}
+                </div>
+                <div class="pipeline-target" style="margin-top:2px;">
+                    1차 평가변수: ${t.primaryEndpoint}
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: ${pct}%; background: ${pct >= 80 ? '#10b981' : '#1a73e8'};"></div>
+                </div>
+            </div>
+            <div class="pipeline-progress"><span>${pct}%</span></div>
+        </div>
+    `}).join('');
+
+    // Render endpoints
+    const epContainer = document.getElementById('endpointList');
+    epContainer.innerHTML = appData.trials.map(t => `
+        <div class="pipeline-item">
+            <div style="width: 80px; font-weight: 700; font-size: 13px; color: var(--primary);">${t.code}</div>
+            <div class="pipeline-info">
+                <div class="pipeline-name">${t.primaryEndpoint}</div>
+                <div class="pipeline-target">${t.endpointMet === null ? '평가 진행중' : (t.endpointMet ? '달성' : '미달성')}</div>
+            </div>
+            <div style="font-size: 20px;">${t.endpointMet === null ? '⏳' : (t.endpointMet ? '✅' : '❌')}</div>
+        </div>
+    `).join('');
+}
+
+function renderNews() {
+    const container = document.getElementById('newsList');
+    container.innerHTML = appData.news.map(n => `
+        <div class="news-item">
+            <div class="news-date">${n.date}</div>
+            <div class="news-title">${n.title}</div>
+            <div class="news-summary">${n.summary}</div>
+            <span class="news-tag" style="background: ${n.tagColor}; color: ${n.tagText};">${n.tag}</span>
+        </div>
+    `).join('');
+}
+
+function renderCharts() {
+    // Target distribution chart
+    const targets = {};
+    appData.pipeline.forEach(p => { targets[p.target] = (targets[p.target] || 0) + 1; });
+    const maxCount = Math.max(...Object.values(targets));
+    const colors = ['#1a73e8', '#6366f1', '#0d9488', '#f59e0b', '#ea580c', '#ef4444', '#8b5cf6'];
+
+    const chart = document.getElementById('targetChart');
+    chart.innerHTML = Object.entries(targets).map(([name, count], i) => `
+        <div class="bar-group">
+            <div class="bar-value">${count}</div>
+            <div class="bar" style="height: ${(count / maxCount) * 150}px; background: ${colors[i % colors.length]};"></div>
+            <div class="bar-label">${name.length > 6 ? name.substring(0, 6) + '..' : name}</div>
+        </div>
+    `).join('');
+
+    // Trial success rate chart
+    const trialChart = document.getElementById('trialChart');
+    const trialData = [
+        { label: 'Phase 1', rate: 65 },
+        { label: 'Phase 2', rate: 33 },
+        { label: 'Phase 3', rate: 58 },
+        { label: '승인', rate: 85 },
+    ];
+    trialChart.innerHTML = trialData.map((d, i) => `
+        <div class="bar-group">
+            <div class="bar-value">${d.rate}%</div>
+            <div class="bar" style="height: ${d.rate * 1.7}px; background: ${colors[i]};"></div>
+            <div class="bar-label">${d.label}</div>
+        </div>
+    `).join('');
+}
+
+// ======== Actions ========
+function filterCompounds() {
+    const query = document.getElementById('compoundSearch').value;
+    renderCompounds(query);
+}
+
+function openModal(name) {
+    document.getElementById('modal-' + name).classList.add('show');
+}
+
+function closeModal(name) {
+    document.getElementById('modal-' + name).classList.remove('show');
+}
+
+function showToast(msg) {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2500);
+}
+
+function addPipelineItem() {
+    const code = document.getElementById('newPipelineCode').value.trim();
+    const name = document.getElementById('newPipelineName').value.trim();
+    if (!code || !name) { showToast('코드와 이름을 입력하세요'); return; }
+
+    appData.pipeline.push({
+        code,
+        name,
+        target: document.getElementById('newPipelineTarget').value,
+        phase: document.getElementById('newPipelinePhase').value,
+        indication: document.getElementById('newPipelineIndication').value,
+        progress: 5,
+        memo: document.getElementById('newPipelineMemo').value || ''
+    });
+
+    saveData(appData);
+    renderPipeline();
+    renderCharts();
+    closeModal('addPipeline');
+    showToast(`${code} 파이프라인 추가 완료!`);
+
+    // Clear form
+    document.getElementById('newPipelineCode').value = '';
+    document.getElementById('newPipelineName').value = '';
+    document.getElementById('newPipelineMemo').value = '';
+}
+
+function addCompound() {
+    const id = document.getElementById('newCompoundId').value.trim();
+    const name = document.getElementById('newCompoundName').value.trim();
+    if (!id || !name) { showToast('ID와 이름을 입력하세요'); return; }
+
+    appData.compounds.push({
+        id,
+        name,
+        formula: document.getElementById('newCompoundFormula').value || 'TBD',
+        mechanism: document.getElementById('newCompoundMechanism').value || 'TBD',
+        efficacy: document.getElementById('newCompoundEfficacy').value,
+        mw: 'TBD',
+        logP: 'TBD'
+    });
+
+    saveData(appData);
+    renderCompounds();
+    closeModal('addCompound');
+    showToast(`${id} 화합물 등록 완료!`);
+
+    // Clear form
+    document.getElementById('newCompoundId').value = '';
+    document.getElementById('newCompoundName').value = '';
+    document.getElementById('newCompoundFormula').value = '';
+    document.getElementById('newCompoundMechanism').value = '';
+}
+
+// ======== Init ========
+function init() {
+    renderPipeline();
+    renderCompounds();
+    renderTrials();
+    renderNews();
+    renderCharts();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+
+</body>
+</html>
