@@ -73,5 +73,11 @@
     <string name="setup_step2">2단계: 키보드 선택</string>
     <string name="setup_status_enabled">키보드가 활성화되어 있습니다. 아래 버튼으로 선택하세요.</string>
     <string name="setup_status_disabled">키보드를 먼저 활성화해주세요.</string>
+    <string name="sensitivity_title">획 인식 감도</string>
+    <string name="sensitivity_description">드래그를 얼마나 길게 해야 모음으로 인식할지 설정합니다.</string>
+    <string name="sensitivity_short">짧게 (민감)</string>
+    <string name="sensitivity_medium">중간 (기본)</string>
+    <string name="sensitivity_long">길게 (둔감)</string>
+    <string name="sensitivity_restart_note">※ 키보드를 다시 열면 적용됩니다.</string>
 
 </resources>

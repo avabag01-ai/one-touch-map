@@ -363,9 +363,25 @@ class OpenMoaIME : InputMethodService(), KoinComponent {
                             binding.previewText.text = gestureKey ?: ""
                             binding.previewText.visibility = View.VISIBLE
                         }
+                        if (config.showRadialOverlay) {
+                            val cx = intent.getFloatExtra("centerX", 0f)
+                            val cy = intent.getFloatExtra("centerY", 0f)
+                            val overlay = binding.keyboardFrameLayout.radialOverlay
+                            val loc = IntArray(2)
+                            overlay.getLocationOnScreen(loc)
+                            val hints = gestureKey?.let { k ->
+                                HangulHintData.getHintsForKey(k)
+                            } ?: emptyMap()
+                            overlay.setShowHints(config.showHint)
+                            overlay.show(cx - loc[0], cy - loc[1], gestureKey ?: "", hints)
+                        }
                     }
                     "move" -> {
+                        val direction = intent.getStringExtra("direction")
                         val previewMoeum = intent.getStringExtra("previewMoeum")
+                        if (config.showRadialOverlay && direction != null) {
+                            binding.keyboardFrameLayout.radialOverlay.updateDirection(direction)
+                        }
                         if (previewMoeum != null && previewMoeum.isNotEmpty() && previewMoeum != lastPreviewMoeum) {
                             lastPreviewMoeum = previewMoeum
                             val key = gestureKey ?: return
@@ -374,8 +390,6 @@ class OpenMoaIME : InputMethodService(), KoinComponent {
                                 binding.previewText.text = previewChar
                             }
                             if (config.realtimeComposing) {
-                                // Real-time composing: show preview in input field
-                                val beforeComposingText = composingText
                                 val tempComposing = composingText + HangulHintData.composeSyllablePublic(key, previewMoeum)
                                 currentInputConnection?.setComposingText(tempComposing, 1)
                             }
@@ -388,8 +402,10 @@ class OpenMoaIME : InputMethodService(), KoinComponent {
                             binding.previewText.visibility = View.GONE
                             binding.previewText.text = ""
                         }
+                        if (config.showRadialOverlay) {
+                            binding.keyboardFrameLayout.radialOverlay.hide()
+                        }
                         if (config.realtimeComposing) {
-                            // Restore actual composing text
                             if (composingText.isNotEmpty()) {
                                 currentInputConnection?.setComposingText(composingText, 1)
                             }

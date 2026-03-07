@@ -26,6 +26,9 @@ class KeyboardFrameLayout : FrameLayout {
 
     private lateinit var binding: KeyboardFrameLayoutBinding
 
+    val radialOverlay: RadialVowelOverlay
+        get() = binding.radialVowelOverlay
+
     private fun init() {
         inflate(context, R.layout.keyboard_frame_layout, this)
         binding = KeyboardFrameLayoutBinding.bind(this)

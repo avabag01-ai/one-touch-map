@@ -1,44 +1,120 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:gravity="center"
-    android:padding="32dp"
     android:background="@color/keyboard_background">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/app_name"
-        android:textSize="28sp"
-        android:textStyle="bold"
-        android:textColor="@color/key_foreground"
-        android:layout_marginBottom="16dp" />
-
-    <TextView
-        android:id="@+id/tvStatus"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/setup_status_disabled"
-        android:textSize="16sp"
-        android:textColor="@color/key_foreground_muted"
-        android:layout_marginBottom="32dp" />
-
-    <Button
-        android:id="@+id/btnEnableKeyboard"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/setup_step1"
-        android:textSize="16sp"
-        android:layout_marginBottom="16dp" />
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:padding="32dp">
 
-    <Button
-        android:id="@+id/btnSelectKeyboard"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/setup_step2"
-        android:textSize="16sp"
-        android:enabled="false" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/app_name"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:textColor="@color/key_foreground"
+            android:layout_marginBottom="16dp" />
 
-</LinearLayout>
+        <TextView
+            android:id="@+id/tvStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/setup_status_disabled"
+            android:textSize="16sp"
+            android:textColor="@color/key_foreground_muted"
+            android:layout_marginBottom="32dp" />
+
+        <Button
+            android:id="@+id/btnEnableKeyboard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/setup_step1"
+            android:textSize="16sp"
+            android:layout_marginBottom="16dp" />
+
+        <Button
+            android:id="@+id/btnSelectKeyboard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/setup_step2"
+            android:textSize="16sp"
+            android:enabled="false"
+            android:layout_marginBottom="32dp" />
+
+        <!-- Sensitivity Settings -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/key_foreground_muted"
+            android:alpha="0.3"
+            android:layout_marginBottom="24dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/sensitivity_title"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="@color/key_foreground"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/sensitivity_description"
+            android:textSize="14sp"
+            android:textColor="@color/key_foreground_muted"
+            android:layout_marginBottom="16dp"
+            android:gravity="center" />
+
+        <RadioGroup
+            android:id="@+id/sensitivityGroup"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <RadioButton
+                android:id="@+id/radioShort"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/sensitivity_short"
+                android:textSize="16sp"
+                android:textColor="@color/key_foreground"
+                android:padding="8dp" />
+
+            <RadioButton
+                android:id="@+id/radioMedium"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/sensitivity_medium"
+                android:textSize="16sp"
+                android:textColor="@color/key_foreground"
+                android:padding="8dp" />
+
+            <RadioButton
+                android:id="@+id/radioLong"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/sensitivity_long"
+                android:textSize="16sp"
+                android:textColor="@color/key_foreground"
+                android:padding="8dp" />
+
+        </RadioGroup>
+
+        <TextView
+            android:id="@+id/tvSensitivityNote"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="13sp"
+            android:textColor="@color/key_foreground_muted"
+            android:layout_marginTop="8dp" />
+
+    </LinearLayout>
+
+</ScrollView>

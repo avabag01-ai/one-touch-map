@@ -5,8 +5,10 @@ import android.os.Bundle
 import android.provider.Settings
 import android.view.inputmethod.InputMethodManager
 import android.widget.Button
+import android.widget.RadioGroup
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import pe.aioo.openmoa.config.Config
 
 class SetupActivity : AppCompatActivity() {
 
@@ -21,6 +23,28 @@ class SetupActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btnSelectKeyboard).setOnClickListener {
             val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
             imm.showInputMethodPicker()
+        }
+
+        // Sensitivity settings
+        val radioGroup = findViewById<RadioGroup>(R.id.sensitivityGroup)
+        val prefs = getSharedPreferences(Config.PREFS_NAME, MODE_PRIVATE)
+        val currentSensitivity = prefs.getFloat(Config.KEY_SENSITIVITY, Config.SENSITIVITY_MEDIUM)
+
+        when (currentSensitivity) {
+            Config.SENSITIVITY_SHORT -> radioGroup.check(R.id.radioShort)
+            Config.SENSITIVITY_LONG -> radioGroup.check(R.id.radioLong)
+            else -> radioGroup.check(R.id.radioMedium)
+        }
+
+        radioGroup.setOnCheckedChangeListener { _, checkedId ->
+            val value = when (checkedId) {
+                R.id.radioShort -> Config.SENSITIVITY_SHORT
+                R.id.radioLong -> Config.SENSITIVITY_LONG
+                else -> Config.SENSITIVITY_MEDIUM
+            }
+            Config.saveSensitivity(this, value)
+            findViewById<TextView>(R.id.tvSensitivityNote).text =
+                getString(R.string.sensitivity_restart_note)
         }
     }
 

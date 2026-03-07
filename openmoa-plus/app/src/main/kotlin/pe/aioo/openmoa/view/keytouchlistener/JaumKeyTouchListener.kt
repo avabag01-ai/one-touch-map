@@ -18,6 +18,10 @@ class JaumKeyTouchListener(
     private val key: String,
 ) : BaseKeyTouchListener(context) {
 
+    // Original touch point - never reset during a gesture
+    private var originX: Float = 0f
+    private var originY: Float = 0f
+    // Tracking point for direction calculation
     private var startX: Float = 0f
     private var startY: Float = 0f
     private val moeumGestureProcessor = MoeumGestureProcessor()
@@ -26,6 +30,7 @@ class JaumKeyTouchListener(
     private var currentDirection: String? = null
     private var touchCenterX: Float = 0f
     private var touchCenterY: Float = 0f
+    private var gestureActivated: Boolean = false
 
     companion object {
         private var lastTapTime: Long = 0L
@@ -47,11 +52,14 @@ class JaumKeyTouchListener(
                 lastTapKey = key
                 lastTapTime = now
 
+                originX = motionEvent.x
+                originY = motionEvent.y
                 startX = motionEvent.x
                 startY = motionEvent.y
                 touchCenterX = motionEvent.rawX
                 touchCenterY = motionEvent.rawY
                 currentDirection = null
+                gestureActivated = false
                 moeumGestureProcessor.clear()
 
                 // Broadcast gesture start for overlay
@@ -67,35 +75,48 @@ class JaumKeyTouchListener(
             MotionEvent.ACTION_MOVE -> {
                 val currentX = motionEvent.x
                 val currentY = motionEvent.y
-                val distance = sqrt(
-                    (currentX - startX).pow(2) + (currentY - startY).pow(2)
-                )
-                if (distance > config.gestureThreshold) {
-                    val degree = (atan2(currentY - startY, currentX - startX) * 180f) / PI
-                    startX = currentX
-                    startY = currentY
-                    val direction: String? = when {
-                        0.001f <= abs(degree) && abs(degree) < 22.5f -> "ㅏ"
-                        abs(degree) < 67.5f -> if (degree > 0) "ㅡR" else "ㅣR"
-                        abs(degree) < 112.5f -> if (degree > 0) "ㅜ" else "ㅗ"
-                        abs(degree) < 157.5f -> if (degree > 0) "ㅡL" else "ㅣL"
-                        abs(degree) <= 179.999f -> "ㅓ"
-                        else -> null
-                    }
-                    if (direction != null) {
-                        moeumGestureProcessor.appendMoeum(direction)
-                        currentDirection = direction
 
-                        // Broadcast current preview for real-time composing
-                        val previewMoeum = moeumGestureProcessor.peekResolve()
-                        broadcastManager.sendBroadcast(
-                            Intent(OpenMoaIME.GESTURE_ACTION).apply {
-                                putExtra("type", "move")
-                                putExtra("key", key)
-                                putExtra("direction", direction)
-                                putExtra("previewMoeum", previewMoeum ?: "")
-                            }
-                        )
+                // Check distance from ORIGINAL touch point (not last sample)
+                val distFromOrigin = sqrt(
+                    (currentX - originX).pow(2) + (currentY - originY).pow(2)
+                )
+
+                // Only activate gesture recognition once total distance exceeds threshold
+                if (distFromOrigin > config.gestureThreshold) {
+                    // For direction calculation, use distance from last tracking point
+                    val distFromLast = sqrt(
+                        (currentX - startX).pow(2) + (currentY - startY).pow(2)
+                    )
+                    // Use a smaller threshold for subsequent direction changes
+                    val segmentThreshold = if (gestureActivated) 30f else config.gestureThreshold
+                    if (distFromLast > segmentThreshold) {
+                        val degree = (atan2(currentY - startY, currentX - startX) * 180f) / PI
+                        startX = currentX
+                        startY = currentY
+                        gestureActivated = true
+                        val direction: String? = when {
+                            0.001f <= abs(degree) && abs(degree) < 22.5f -> "ㅏ"
+                            abs(degree) < 67.5f -> if (degree > 0) "ㅡR" else "ㅣR"
+                            abs(degree) < 112.5f -> if (degree > 0) "ㅜ" else "ㅗ"
+                            abs(degree) < 157.5f -> if (degree > 0) "ㅡL" else "ㅣL"
+                            abs(degree) <= 179.999f -> "ㅓ"
+                            else -> null
+                        }
+                        if (direction != null) {
+                            moeumGestureProcessor.appendMoeum(direction)
+                            currentDirection = direction
+
+                            // Broadcast current preview for real-time composing
+                            val previewMoeum = moeumGestureProcessor.peekResolve()
+                            broadcastManager.sendBroadcast(
+                                Intent(OpenMoaIME.GESTURE_ACTION).apply {
+                                    putExtra("type", "move")
+                                    putExtra("key", key)
+                                    putExtra("direction", direction)
+                                    putExtra("previewMoeum", previewMoeum ?: "")
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -108,8 +129,11 @@ class JaumKeyTouchListener(
                 )
 
                 sendKeyMessage(StringKeyMessage(key))
-                moeumGestureProcessor.resolveMoeumList()?.let {
-                    sendKeyMessage(StringKeyMessage(it))
+                // Only send vowel if gesture was actually activated (sufficient distance)
+                if (gestureActivated) {
+                    moeumGestureProcessor.resolveMoeumList()?.let {
+                        sendKeyMessage(StringKeyMessage(it))
+                    }
                 }
             }
         }
