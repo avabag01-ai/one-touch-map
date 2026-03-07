@@ -4,6 +4,10 @@ on:
   push:
     paths:
       - 'openmoa-plus/**'
+      - '.github/workflows/build-apk.yml'
+  pull_request:
+    paths:
+      - 'openmoa-plus/**'
   workflow_dispatch:
 
 defaults:
@@ -45,20 +49,27 @@ jobs:
         run: echo "short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
       - name: Create Release
+        if: github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: openmoa-plus-v1.0.${{ github.run_number }}
           name: "OpenMoa+ Build #${{ github.run_number }} (${{ steps.sha.outputs.short }})"
           body: |
-            ## OpenMoa+ 자동 빌드
+            ## OpenMoa+ APK 다운로드
 
-            APK를 다운로드해서 안드로이드 폰에 설치하세요.
+            아래 APK 파일을 다운로드해서 안드로이드 폰에 바로 설치하세요.
 
             ### 설치 방법
-            1. 아래 APK 파일 다운로드
+            1. **app-debug.apk** 다운로드
             2. 폰에서 "알 수 없는 앱 설치" 허용
             3. APK 설치
             4. 설정 → 시스템 → 언어 및 입력 → 화상 키보드 → OpenMoa 활성화
-            5. 키보드 전환해서 사용
+            5. 아무 입력창에서 키보드 전환해서 사용
+
+            ### 주요 기능
+            - 더블탭 삭제: 같은 자음 빠르게 두번 탭 → 글자 삭제
+            - 방사형 모음 오버레이: 드래그 방향 시각화
+            - 상단 프리뷰: 조합 중인 글자 실시간 표시
+            - 계층적 힌트: 방향별 예측 글자 안내
           files: openmoa-plus/app/build/outputs/apk/debug/*.apk
           make_latest: true
