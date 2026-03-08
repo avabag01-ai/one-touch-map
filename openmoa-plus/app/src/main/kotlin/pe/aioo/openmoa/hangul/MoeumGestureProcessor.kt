@@ -16,145 +16,168 @@ class MoeumGestureProcessor {
         return resolveInternal(moeumList)
     }
 
+    /**
+     * Returns the full internal state (e.g. "ㅏ", "ㅡLㅓ", etc.) without reducing to final vowel.
+     * Used for hierarchical hint computation.
+     */
+    fun peekFullState(): String? {
+        return resolveFullState(moeumList)
+    }
+
+    /**
+     * Simulates a transition from a given state with a new input direction.
+     * Returns the new full state (not reduced to final vowel).
+     * Used for computing "what would happen if user drags in direction X".
+     */
+    fun transitionFrom(state: String?, input: String): String? {
+        return when (state) {
+            null -> input
+            "ㅏ" -> when (input) {
+                "ㅓ", "ㅗ", "ㅜ", "ㅡL", "ㅣL" -> "ㅐ"
+                else -> state
+            }
+            "ㅐ" -> when (input) {
+                "ㅏ", "ㅡR", "ㅣR" -> "ㅑ"
+                else -> state
+            }
+            "ㅑ" -> when (input) {
+                "ㅓ", "ㅡL", "ㅣL" -> "ㅒ"
+                else -> state
+            }
+            "ㅓ" -> when (input) {
+                "ㅏ", "ㅗ", "ㅜ", "ㅡR", "ㅣR" -> "ㅔ"
+                else -> state
+            }
+            "ㅔ" -> when (input) {
+                "ㅓ", "ㅡL", "ㅣL" -> "ㅕ"
+                else -> state
+            }
+            "ㅕ" -> when (input) {
+                "ㅏ", "ㅡR", "ㅣR" -> "ㅖ"
+                else -> state
+            }
+            "ㅗ" -> when (input) {
+                "ㅏ" -> "ㅘ"
+                "ㅜ", "ㅡL", "ㅡR" -> "ㅚ"
+                else -> state
+            }
+            "ㅘ" -> when (input) {
+                "ㅓ", "ㅜ", "ㅡL", "ㅡR" -> "ㅙ"
+                "ㅗ" -> "ㅛ"
+                else -> state
+            }
+            "ㅚ" -> when (input) {
+                "ㅏ" -> "ㅘ"
+                "ㅗ", "ㅣL", "ㅣR" -> "ㅛ"
+                "ㅓ" -> "ㅕ"
+                else -> state
+            }
+            "ㅜ" -> when (input) {
+                "ㅓ" -> "ㅝ"
+                "ㅗ", "ㅣL", "ㅣR" -> "ㅟ"
+                else -> state
+            }
+            "ㅝ" -> when (input) {
+                "ㅏ", "ㅗ", "ㅡR", "ㅣR" -> "ㅞ"
+                "ㅜ" -> "ㅠ"
+                else -> state
+            }
+            "ㅟ" -> when (input) {
+                "ㅓ" -> "ㅝ"
+                "ㅜ", "ㅡL", "ㅡR" -> "ㅠ"
+                "ㅏ" -> "ㅑ"
+                else -> state
+            }
+            "ㅡL" -> when (input) {
+                "ㅏ", "ㅜ" -> "ㅡLㅜ"
+                "ㅓ", "ㅗ" -> "ㅡLㅓ"
+                "ㅣL", "ㅣR" -> "ㅢ"
+                else -> state
+            }
+            "ㅡLㅓ" -> when (input) {
+                "ㅓ", "ㅗ" -> "ㅓ"
+                "ㅣL", "ㅣR" -> "ㅢ"
+                else -> state
+            }
+            "ㅡLㅜ" -> when (input) {
+                "ㅏ", "ㅜ" -> "ㅜ"
+                "ㅣL", "ㅣR" -> "ㅢ"
+                else -> state
+            }
+            "ㅡR" -> when (input) {
+                "ㅏ", "ㅗ" -> "ㅡRㅏ"
+                "ㅓ", "ㅜ" -> "ㅡRㅜ"
+                "ㅣL", "ㅣR" -> "ㅢ"
+                else -> state
+            }
+            "ㅡRㅏ" -> when (input) {
+                "ㅏ", "ㅗ" -> "ㅏ"
+                "ㅣL", "ㅣR" -> "ㅢ"
+                else -> state
+            }
+            "ㅡRㅜ" -> when (input) {
+                "ㅓ", "ㅜ" -> "ㅜ"
+                "ㅣL", "ㅣR" -> "ㅢ"
+                else -> state
+            }
+            "ㅣL" -> when (input) {
+                "ㅏ", "ㅗ" -> "ㅣLㅗ"
+                "ㅓ", "ㅜ" -> "ㅣLㅓ"
+                else -> state
+            }
+            "ㅣLㅓ" -> when (input) {
+                "ㅓ", "ㅜ" -> "ㅓ"
+                else -> state
+            }
+            "ㅣLㅗ" -> when (input) {
+                "ㅏ", "ㅗ" -> "ㅗ"
+                else -> state
+            }
+            "ㅣR" -> when (input) {
+                "ㅏ", "ㅜ" -> "ㅣRㅏ"
+                "ㅓ", "ㅗ" -> "ㅣRㅗ"
+                else -> state
+            }
+            "ㅣRㅏ" -> when (input) {
+                "ㅏ", "ㅜ" -> "ㅏ"
+                else -> state
+            }
+            "ㅣRㅗ" -> when (input) {
+                "ㅓ", "ㅗ" -> "ㅗ"
+                else -> state
+            }
+            else -> state
+        }
+    }
+
     fun resolveMoeumList(): String? {
         return resolveInternal(moeumList)
     }
 
-    private fun resolveInternal(list: List<String>): String? {
+    private fun resolveFullState(list: List<String>): String? {
         var moeum: String? = null
         for (nextMoeum in list) {
-            moeum = when (moeum) {
-                "ㅏ" -> when (nextMoeum) {
-                    "ㅓ" -> "ㅐ"
-                    "ㅗ", "ㅜ", "ㅡL", "ㅣL" -> "ㅐ"
-                    else -> moeum
-                }
-                "ㅐ" -> when (nextMoeum) {
-                    "ㅏ" -> "ㅑ"
-                    "ㅡR", "ㅣR" -> "ㅑ"
-                    else -> moeum
-                }
-                "ㅑ" -> when (nextMoeum) {
-                    "ㅓ" -> "ㅒ"
-                    "ㅡL", "ㅣL" -> "ㅒ"
-                    else -> moeum
-                }
-                "ㅓ" -> when (nextMoeum) {
-                    "ㅏ" -> "ㅔ"
-                    "ㅗ", "ㅜ", "ㅡR", "ㅣR" -> "ㅔ"
-                    else -> moeum
-                }
-                "ㅔ" -> when (nextMoeum) {
-                    "ㅓ" -> "ㅕ"
-                    "ㅡL", "ㅣL" -> "ㅕ"
-                    else -> moeum
-                }
-                "ㅕ" -> when (nextMoeum) {
-                    "ㅏ" -> "ㅖ"
-                    "ㅡR", "ㅣR" -> "ㅖ"
-                    else -> moeum
-                }
-                "ㅗ" -> when (nextMoeum) {
-                    "ㅏ" -> "ㅘ"
-                    "ㅜ" -> "ㅚ"
-                    "ㅡL", "ㅡR" -> "ㅚ"
-                    else -> moeum
-                }
-                "ㅘ" -> when (nextMoeum) {
-                    "ㅓ" -> "ㅙ"
-                    "ㅗ" -> "ㅛ"
-                    "ㅜ", "ㅡL", "ㅡR" -> "ㅙ"
-                    else -> moeum
-                }
-                "ㅚ" -> when (nextMoeum) {
-                    "ㅏ" -> "ㅘ"
-                    "ㅗ" -> "ㅛ"
-                    "ㅓ" -> "ㅕ"
-                    "ㅣL", "ㅣR" -> "ㅛ"
-                    else -> moeum
-                }
-                "ㅜ" -> when (nextMoeum) {
-                    "ㅓ" -> "ㅝ"
-                    "ㅗ" -> "ㅟ"
-                    "ㅣL", "ㅣR" -> "ㅟ"
-                    else -> moeum
-                }
-                "ㅝ" -> when (nextMoeum) {
-                    "ㅏ" -> "ㅞ"
-                    "ㅜ" -> "ㅠ"
-                    "ㅗ", "ㅡR", "ㅣR" -> "ㅞ"
-                    else -> moeum
-                }
-                "ㅟ" -> when (nextMoeum) {
-                    "ㅓ" -> "ㅝ"
-                    "ㅜ" -> "ㅠ"
-                    "ㅏ" -> "ㅑ"
-                    "ㅡL", "ㅡR" -> "ㅠ"
-                    else -> moeum
-                }
-                "ㅡL" -> when (nextMoeum) {
-                    "ㅏ", "ㅜ" -> "ㅡLㅜ"
-                    "ㅓ", "ㅗ" -> "ㅡLㅓ"
-                    "ㅣL", "ㅣR" -> "ㅢ"
-                    else -> moeum
-                }
-                "ㅡLㅓ" -> when (nextMoeum) {
-                    "ㅓ", "ㅗ" -> "ㅓ"
-                    "ㅣL", "ㅣR" -> "ㅢ"
-                    else -> moeum
-                }
-                "ㅡLㅜ" -> when (nextMoeum) {
-                    "ㅏ", "ㅜ" -> "ㅜ"
-                    "ㅣL", "ㅣR" -> "ㅢ"
-                    else -> moeum
-                }
-                "ㅡR" -> when (nextMoeum) {
-                    "ㅏ", "ㅗ" -> "ㅡRㅏ"
-                    "ㅓ", "ㅜ" -> "ㅡRㅜ"
-                    "ㅣL", "ㅣR" -> "ㅢ"
-                    else -> moeum
-                }
-                "ㅡRㅏ" -> when (nextMoeum) {
-                    "ㅏ", "ㅗ" -> "ㅏ"
-                    "ㅣL", "ㅣR" -> "ㅢ"
-                    else -> moeum
-                }
-                "ㅡRㅜ" -> when (nextMoeum) {
-                    "ㅓ", "ㅜ" -> "ㅜ"
-                    "ㅣL", "ㅣR" -> "ㅢ"
-                    else -> moeum
-                }
-                "ㅣL" -> when (nextMoeum) {
-                    "ㅏ", "ㅗ" -> "ㅣLㅗ"
-                    "ㅓ", "ㅜ" -> "ㅣLㅓ"
-                    else -> moeum
-                }
-                "ㅣLㅓ" -> when (nextMoeum) {
-                    "ㅓ", "ㅜ" -> "ㅓ"
-                    else -> moeum
-                }
-                "ㅣLㅗ" -> when (nextMoeum) {
-                    "ㅏ", "ㅗ" -> "ㅗ"
-                    else -> moeum
-                }
-                "ㅣR" -> when (nextMoeum) {
-                    "ㅏ", "ㅜ" -> "ㅣRㅏ"
-                    "ㅓ", "ㅗ" -> "ㅣRㅗ"
-                    else -> moeum
-                }
-                "ㅣRㅏ" -> when (nextMoeum) {
-                    "ㅏ", "ㅜ" -> "ㅏ"
-                    else -> moeum
-                }
-                "ㅣRㅗ" -> when (nextMoeum) {
-                    "ㅓ", "ㅗ" -> "ㅗ"
-                    else -> moeum
-                }
-                null -> nextMoeum
-                else -> moeum
-            }
+            moeum = transitionFrom(moeum, nextMoeum)
         }
-        return moeum?.substring(0, 1)
+        return moeum
+    }
+
+    /**
+     * Converts a full state to the final vowel character.
+     * Intermediate states like "ㅡLㅓ", "ㅣRㅏ" resolve to their first character.
+     */
+    companion object {
+        fun resolveVowelFromState(state: String?): String? {
+            return state?.substring(0, 1)
+        }
+
+        /** All 8 input directions */
+        val ALL_DIRECTIONS = listOf("ㅏ", "ㅣR", "ㅗ", "ㅣL", "ㅓ", "ㅡL", "ㅜ", "ㅡR")
+    }
+
+    private fun resolveInternal(list: List<String>): String? {
+        val fullState = resolveFullState(list)
+        return resolveVowelFromState(fullState)
     }
 
 }

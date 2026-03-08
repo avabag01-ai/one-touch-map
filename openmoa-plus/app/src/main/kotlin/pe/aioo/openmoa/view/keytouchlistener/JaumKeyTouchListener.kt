@@ -114,12 +114,14 @@ class JaumKeyTouchListener(
 
                             // Broadcast current preview for real-time composing
                             val previewMoeum = moeumGestureProcessor.peekResolve()
+                            val fullState = moeumGestureProcessor.peekFullState()
                             broadcastManager.sendBroadcast(
                                 Intent(OpenMoaIME.GESTURE_ACTION).apply {
                                     putExtra("type", "move")
                                     putExtra("key", key)
                                     putExtra("direction", direction)
                                     putExtra("previewMoeum", previewMoeum ?: "")
+                                    putExtra("fullState", fullState ?: "")
                                 }
                             )
                         }

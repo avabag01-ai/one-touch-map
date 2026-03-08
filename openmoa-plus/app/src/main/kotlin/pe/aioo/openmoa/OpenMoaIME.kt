@@ -37,6 +37,7 @@ import pe.aioo.openmoa.config.Config
 import com.onetouchmap.keyboard.databinding.OpenMoaImeBinding
 import pe.aioo.openmoa.hangul.HangulAssembler
 import pe.aioo.openmoa.hangul.HangulHintData
+import pe.aioo.openmoa.hangul.MoeumGestureProcessor
 import pe.aioo.openmoa.view.keyboardview.*
 import pe.aioo.openmoa.view.keyboardview.qwerty.QuertyView
 import pe.aioo.openmoa.view.message.SpecialKey
@@ -56,6 +57,26 @@ class OpenMoaIME : InputMethodService(), KoinComponent {
     private lateinit var gestureReceiver: BroadcastReceiver
     private var gestureKey: String? = null
     private var lastPreviewMoeum: String? = null
+    private val hintProcessor = MoeumGestureProcessor()
+
+    /**
+     * Compute hierarchical hints: for each of the 8 directions,
+     * simulate "what vowel would result if the user drags that direction next?"
+     * Returns map of direction -> composed syllable string.
+     */
+    private fun computeHierarchicalHints(consonant: String, fullState: String?): Map<String, String> {
+        val hints = mutableMapOf<String, String>()
+        for (dir in MoeumGestureProcessor.ALL_DIRECTIONS) {
+            val nextState = hintProcessor.transitionFrom(fullState, dir)
+            if (nextState != null && nextState != fullState) {
+                val vowel = MoeumGestureProcessor.resolveVowelFromState(nextState)
+                if (vowel != null) {
+                    hints[dir] = HangulHintData.composeSyllablePublic(consonant, vowel)
+                }
+            }
+        }
+        return hints
+    }
 
     private fun finishComposing() {
         currentInputConnection?.finishComposingText()
@@ -370,10 +391,10 @@ class OpenMoaIME : InputMethodService(), KoinComponent {
                                 val overlay = binding.keyboardFrameLayout.radialOverlay
                                 val loc = IntArray(2)
                                 overlay.getLocationOnScreen(loc)
+                                // Compute initial hierarchical hints (state=null → first stroke options)
                                 val hints = gestureKey?.let { k ->
-                                    HangulHintData.getHintsForKey(k)
+                                    computeHierarchicalHints(k, null)
                                 } ?: emptyMap()
-                                overlay.setShowHints(config.showHint)
                                 overlay.show(cx - loc[0], cy - loc[1], gestureKey ?: "", hints)
                             } catch (_: Exception) { }
                         }
@@ -381,9 +402,16 @@ class OpenMoaIME : InputMethodService(), KoinComponent {
                     "move" -> {
                         val direction = intent.getStringExtra("direction")
                         val previewMoeum = intent.getStringExtra("previewMoeum")
+                        val fullState = intent.getStringExtra("fullState")
                         if (config.showRadialOverlay && direction != null) {
                             try {
-                                binding.keyboardFrameLayout.radialOverlay.updateDirection(direction)
+                                val overlay = binding.keyboardFrameLayout.radialOverlay
+                                overlay.updateDirection(direction)
+                                // Recompute hierarchical hints based on current state
+                                gestureKey?.let { k ->
+                                    val nextHints = computeHierarchicalHints(k, fullState)
+                                    overlay.updateHints(nextHints)
+                                }
                             } catch (_: Exception) { }
                         }
                         if (previewMoeum != null && previewMoeum.isNotEmpty() && previewMoeum != lastPreviewMoeum) {
