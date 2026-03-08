@@ -38,6 +38,7 @@ import com.onetouchmap.keyboard.databinding.OpenMoaImeBinding
 import pe.aioo.openmoa.hangul.HangulAssembler
 import pe.aioo.openmoa.hangul.HangulHintData
 import pe.aioo.openmoa.hangul.MoeumGestureProcessor
+import pe.aioo.openmoa.handwriting.HandwritingCanvasView
 import pe.aioo.openmoa.view.keyboardview.*
 import pe.aioo.openmoa.view.keyboardview.qwerty.QuertyView
 import pe.aioo.openmoa.view.message.SpecialKey
@@ -536,6 +537,20 @@ class OpenMoaIME : InputMethodService(), KoinComponent {
         val view = layoutInflater.inflate(R.layout.open_moa_ime, null)
         binding = OpenMoaImeBinding.bind(view)
         setKeyboard(imeMode)
+
+        // Set up handwriting canvas listener
+        binding.keyboardFrameLayout.handwritingCanvas.listener =
+            object : HandwritingCanvasView.Listener {
+                override fun onTextCommitted(text: String) {
+                    finishComposing()
+                    currentInputConnection?.commitText(text, 1)
+                }
+
+                override fun onDismiss() {
+                    binding.keyboardFrameLayout.hideHandwriting()
+                }
+            }
+
         return view
     }
 

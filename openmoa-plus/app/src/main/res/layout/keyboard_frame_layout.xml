@@ -14,4 +14,10 @@
         android:layout_height="match_parent"
         android:visibility="gone" />
 
+    <pe.aioo.openmoa.handwriting.HandwritingCanvasView
+        android:id="@+id/handwritingCanvas"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+
 </FrameLayout>
