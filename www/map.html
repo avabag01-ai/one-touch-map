@@ -480,7 +480,7 @@
 
                 // 좌표 없으면 지오코딩
                 if (!lat || !lng) {
-                    const address = delivery.addressBefore || delivery.addressAfter;
+                    const address = delivery.fullAddress || delivery.addressAfter || delivery.addressBefore;
                     if (address) {
                         const coord = await geocodeAddressVWorld(address);
                         if (coord) {
