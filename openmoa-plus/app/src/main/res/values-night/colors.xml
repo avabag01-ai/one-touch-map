@@ -7,5 +7,6 @@
     <color name="key_foreground">#FFFFFF</color>
     <color name="key_foreground_muted">#BBBBBB</color>
     <color name="key_foreground_locked">#5E97EE</color>
+    <color name="vowel_highlight">#64B5F6</color>
 
 </resources>

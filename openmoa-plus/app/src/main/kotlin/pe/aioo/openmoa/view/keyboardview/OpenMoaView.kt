@@ -115,51 +115,127 @@ class OpenMoaView : ConstraintLayout, KoinComponent {
         broadcastManager.unregisterReceiver(vowelModeReceiver)
     }
 
+    // All non-consonant keys that should hide during vowel mode
+    private val functionalKeys: List<TextView> by lazy {
+        listOf(
+            binding.tildeKey, binding.emojiKey, binding.caretKey,
+            binding.backspaceKey, binding.semicolonKey, binding.asteriskKey,
+            binding.iKey, binding.euKey, binding.araeaKey,
+            binding.languageKey, binding.hanjaNumberPunctuationKey,
+            binding.spaceKey, binding.commaQuestionDotExclamationKey, binding.enterKey
+        )
+    }
+
+    // Track which keys are showing vowels (keyView -> direction key like "ㅏ","ㅣR" etc.)
+    private val vowelDisplayKeys = mutableMapOf<TextView, String>()
+    private var pressedKeyView: TextView? = null
+
     // --- Vowel Mode ---
 
     private fun enterVowelMode(pressedKeyName: String) {
         val pressedView = consonantKeyMap[pressedKeyName] ?: return
+        vowelModeActive = true
+        pressedKeyView = pressedView
+
         val pressedCx = pressedView.x + pressedView.width / 2f
         val pressedCy = pressedView.y + pressedView.height / 2f
 
-        vowelModeActive = true
+        // Find closest key in each of 8 directions
+        data class KeyCandidate(val view: TextView, val dist: Float, val direction: String)
+        val bestPerDirection = mutableMapOf<String, KeyCandidate>()
 
         for ((name, keyView) in consonantKeyMap) {
             savedKeyTexts[keyView] = keyView.text
+            if (name == pressedKeyName) continue
 
-            if (name == pressedKeyName) {
-                // Highlight pressed key, keep its text
-                keyView.background = backgrounds[0]
-                continue
-            }
-
-            // Calculate direction from pressed key to this key
             val keyCx = keyView.x + keyView.width / 2f
             val keyCy = keyView.y + keyView.height / 2f
             val angle = Math.toDegrees(
                 atan2((keyCy - pressedCy).toDouble(), (keyCx - pressedCx).toDouble())
             )
+            val dist = sqrt((keyCx - pressedCx).pow(2) + (keyCy - pressedCy).pow(2))
+            val direction = angleToDirection(angle)
 
-            val vowel = angleToVowel(angle)
+            val current = bestPerDirection[direction]
+            if (current == null || dist < current.dist) {
+                bestPerDirection[direction] = KeyCandidate(keyView, dist, direction)
+            }
+        }
 
-            // Crossfade animation: fade out → change text → fade in
-            keyView.animate().alpha(0f).setDuration(80).withEndAction {
-                keyView.text = vowel
-                keyView.animate().alpha(1f).setDuration(120).start()
-            }.start()
+        vowelDisplayKeys.clear()
+        val vowelKeyViews = bestPerDirection.values.map { it.view }.toSet()
+
+        // Highlight pressed key
+        pressedView.background = backgrounds[0]
+
+        // Animate all consonant keys
+        for ((name, keyView) in consonantKeyMap) {
+            if (name == pressedKeyName) continue
+
+            if (keyView in vowelKeyViews) {
+                // This key becomes a vowel key
+                val candidate = bestPerDirection.values.first { it.view == keyView }
+                val vowelLabel = directionToVowelLabel(candidate.direction)
+                vowelDisplayKeys[keyView] = candidate.direction
+
+                // Fade out → change to vowel → scale up + fade in
+                keyView.animate().cancel()
+                keyView.animate()
+                    .alpha(0f)
+                    .setDuration(60)
+                    .withEndAction {
+                        keyView.text = vowelLabel
+                        keyView.setTextColor(ContextCompat.getColor(context, com.onetouchmap.keyboard.R.color.vowel_highlight))
+                        keyView.animate()
+                            .alpha(1f)
+                            .scaleX(1.15f)
+                            .scaleY(1.15f)
+                            .setDuration(120)
+                            .start()
+                    }.start()
+            } else {
+                // Hide completely
+                keyView.animate().cancel()
+                keyView.animate()
+                    .alpha(0f)
+                    .scaleX(0.8f)
+                    .scaleY(0.8f)
+                    .setDuration(100)
+                    .start()
+            }
+        }
+
+        // Hide functional keys
+        for (funcKey in functionalKeys) {
+            funcKey.animate().cancel()
+            funcKey.animate().alpha(0f).setDuration(80).start()
         }
     }
 
-    private fun angleToVowel(angle: Double): String {
+    /** Map angle to one of 8 direction keys used by MoeumGestureProcessor */
+    private fun angleToDirection(angle: Double): String {
         return when {
-            abs(angle) <= 22.5 -> "ㅏ"            // → right
-            angle in 22.5..67.5 -> "ㅡ"           // ↘ lower-right
-            angle in 67.5..112.5 -> "ㅜ"          // ↓ down
-            angle in 112.5..157.5 -> "ㅡ"         // ↙ lower-left
-            abs(angle) >= 157.5 -> "ㅓ"           // ← left
-            angle in -67.5..-22.5 -> "ㅣ"         // ↗ upper-right
-            angle in -112.5..-67.5 -> "ㅗ"        // ↑ up
-            angle in -157.5..-112.5 -> "ㅣ"       // ↖ upper-left
+            abs(angle) <= 22.5 -> "ㅏ"
+            angle in 22.5..67.5 -> "ㅡR"
+            angle in 67.5..112.5 -> "ㅜ"
+            angle in 112.5..157.5 -> "ㅡL"
+            abs(angle) >= 157.5 -> "ㅓ"
+            angle in -67.5..-22.5 -> "ㅣR"
+            angle in -112.5..-67.5 -> "ㅗ"
+            angle in -157.5..-112.5 -> "ㅣL"
+            else -> "ㅏ"
+        }
+    }
+
+    /** Convert direction key to display vowel label */
+    private fun directionToVowelLabel(direction: String): String {
+        return when (direction) {
+            "ㅏ" -> "ㅏ"
+            "ㅓ" -> "ㅓ"
+            "ㅗ" -> "ㅗ"
+            "ㅜ" -> "ㅜ"
+            "ㅣR", "ㅣL" -> "ㅣ"
+            "ㅡR", "ㅡL" -> "ㅡ"
             else -> "ㅏ"
         }
     }
@@ -167,24 +243,25 @@ class OpenMoaView : ConstraintLayout, KoinComponent {
     private fun highlightVowelDirection(direction: String?) {
         if (!vowelModeActive) return
 
-        val targetVowel = when (direction) {
-            "ㅏ" -> "ㅏ"
-            "ㅓ" -> "ㅓ"
-            "ㅗ" -> "ㅗ"
-            "ㅜ" -> "ㅜ"
-            "ㅣR", "ㅣL" -> "ㅣ"
-            "ㅡR", "ㅡL" -> "ㅡ"
-            else -> null
-        }
+        for ((keyView, dirKey) in vowelDisplayKeys) {
+            val isMatch = when (direction) {
+                "ㅏ" -> dirKey == "ㅏ"
+                "ㅓ" -> dirKey == "ㅓ"
+                "ㅗ" -> dirKey == "ㅗ"
+                "ㅜ" -> dirKey == "ㅜ"
+                "ㅣR", "ㅣL" -> dirKey == "ㅣR" || dirKey == "ㅣL"
+                "ㅡR", "ㅡL" -> dirKey == "ㅡR" || dirKey == "ㅡL"
+                else -> false
+            }
 
-        for ((name, keyView) in consonantKeyMap) {
-            // Skip the pressed key (it keeps its consonant text)
-            if (keyView.text.toString() == name) continue
-
-            if (targetVowel != null && keyView.text.toString() == targetVowel) {
-                keyView.background = backgrounds[0]  // highlight matching vowels
+            if (isMatch) {
+                keyView.background = backgrounds[0]
+                keyView.animate().cancel()
+                keyView.animate().scaleX(1.3f).scaleY(1.3f).setDuration(80).start()
             } else {
-                keyView.background = backgrounds[1]  // reset others
+                keyView.background = backgrounds[1]
+                keyView.animate().cancel()
+                keyView.animate().scaleX(1.15f).scaleY(1.15f).setDuration(80).start()
             }
         }
     }
@@ -193,13 +270,52 @@ class OpenMoaView : ConstraintLayout, KoinComponent {
         if (!vowelModeActive) return
         vowelModeActive = false
 
-        for ((keyView, originalText) in savedKeyTexts) {
-            keyView.animate().alpha(0f).setDuration(80).withEndAction {
-                keyView.text = originalText
-                keyView.background = backgrounds[1]
-                keyView.animate().alpha(1f).setDuration(120).start()
-            }.start()
+        // Restore pressed key
+        pressedKeyView?.background = backgrounds[1]
+        pressedKeyView = null
+
+        // Restore vowel display keys
+        for ((keyView, _) in vowelDisplayKeys) {
+            keyView.animate().cancel()
+            keyView.animate()
+                .alpha(0f)
+                .setDuration(60)
+                .withEndAction {
+                    val originalText = savedKeyTexts[keyView]
+                    if (originalText != null) keyView.text = originalText
+                    keyView.setTextColor(ContextCompat.getColor(context, com.onetouchmap.keyboard.R.color.key_foreground))
+                    keyView.background = backgrounds[1]
+                    keyView.animate()
+                        .alpha(1f)
+                        .scaleX(1f)
+                        .scaleY(1f)
+                        .setDuration(100)
+                        .start()
+                }.start()
         }
+
+        // Restore hidden consonant keys
+        for ((_, keyView) in consonantKeyMap) {
+            if (keyView !in vowelDisplayKeys) {
+                val originalText = savedKeyTexts[keyView]
+                if (originalText != null) keyView.text = originalText
+                keyView.animate().cancel()
+                keyView.animate()
+                    .alpha(1f)
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .setDuration(120)
+                    .start()
+            }
+        }
+
+        // Restore functional keys
+        for (funcKey in functionalKeys) {
+            funcKey.animate().cancel()
+            funcKey.animate().alpha(1f).setDuration(100).start()
+        }
+
+        vowelDisplayKeys.clear()
         savedKeyTexts.clear()
     }
 
