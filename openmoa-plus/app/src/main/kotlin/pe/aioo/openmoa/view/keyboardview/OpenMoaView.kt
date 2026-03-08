@@ -12,10 +12,10 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import pe.aioo.openmoa.OpenMoaIME
-import pe.aioo.openmoa.R
+import com.onetouchmap.keyboard.R
 import pe.aioo.openmoa.config.Config
 import pe.aioo.openmoa.view.message.SpecialKey
-import pe.aioo.openmoa.databinding.OpenMoaViewBinding
+import com.onetouchmap.keyboard.databinding.OpenMoaViewBinding
 import pe.aioo.openmoa.view.keytouchlistener.CrossKeyTouchListener
 import pe.aioo.openmoa.view.keytouchlistener.JaumKeyTouchListener
 import pe.aioo.openmoa.view.keytouchlistener.RepeatKeyTouchListener

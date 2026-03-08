@@ -11,7 +11,7 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import pe.aioo.openmoa.OpenMoaIME
-import pe.aioo.openmoa.R
+import com.onetouchmap.keyboard.R
 import pe.aioo.openmoa.config.Config
 import pe.aioo.openmoa.view.message.BaseKeyMessage
 import pe.aioo.openmoa.view.message.SpecialKeyMessage

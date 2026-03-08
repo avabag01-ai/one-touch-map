@@ -7,8 +7,8 @@ import android.util.AttributeSet
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import pe.aioo.openmoa.OpenMoaIME
-import pe.aioo.openmoa.R
-import pe.aioo.openmoa.databinding.EmojiViewBinding
+import com.onetouchmap.keyboard.R
+import com.onetouchmap.keyboard.databinding.EmojiViewBinding
 import pe.aioo.openmoa.view.keytouchlistener.RepeatKeyTouchListener
 import pe.aioo.openmoa.view.keytouchlistener.SimpleKeyTouchListener
 import pe.aioo.openmoa.view.message.SpecialKey

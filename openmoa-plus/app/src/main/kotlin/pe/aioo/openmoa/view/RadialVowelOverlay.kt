@@ -5,7 +5,7 @@ import android.graphics.*
 import android.util.AttributeSet
 import android.view.View
 import androidx.core.content.ContextCompat
-import pe.aioo.openmoa.R
+import com.onetouchmap.keyboard.R
 
 class RadialVowelOverlay @JvmOverloads constructor(
     context: Context,

@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace 'pe.aioo.openmoa'
+    namespace 'com.onetouchmap.keyboard'
     compileSdk 34
 
     defaultConfig {

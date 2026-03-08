@@ -34,7 +34,7 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import pe.aioo.openmoa.config.Config
-import pe.aioo.openmoa.databinding.OpenMoaImeBinding
+import com.onetouchmap.keyboard.databinding.OpenMoaImeBinding
 import pe.aioo.openmoa.hangul.HangulAssembler
 import pe.aioo.openmoa.hangul.HangulHintData
 import pe.aioo.openmoa.view.keyboardview.*

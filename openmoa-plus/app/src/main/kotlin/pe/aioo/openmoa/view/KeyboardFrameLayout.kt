@@ -5,8 +5,8 @@ import android.util.AttributeSet
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
-import pe.aioo.openmoa.R
-import pe.aioo.openmoa.databinding.KeyboardFrameLayoutBinding
+import com.onetouchmap.keyboard.R
+import com.onetouchmap.keyboard.databinding.KeyboardFrameLayoutBinding
 
 class KeyboardFrameLayout : FrameLayout {
 

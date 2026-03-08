@@ -4,8 +4,8 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.util.AttributeSet
 import androidx.constraintlayout.widget.ConstraintLayout
-import pe.aioo.openmoa.R
-import pe.aioo.openmoa.databinding.PhoneViewBinding
+import com.onetouchmap.keyboard.R
+import com.onetouchmap.keyboard.databinding.PhoneViewBinding
 import pe.aioo.openmoa.view.keytouchlistener.FunctionalKeyTouchListener
 import pe.aioo.openmoa.view.message.SpecialKey
 import pe.aioo.openmoa.view.keytouchlistener.RepeatKeyTouchListener
