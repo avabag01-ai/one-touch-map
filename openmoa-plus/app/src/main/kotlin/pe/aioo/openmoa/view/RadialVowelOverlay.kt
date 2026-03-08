@@ -8,9 +8,13 @@ import androidx.core.content.ContextCompat
 import com.onetouchmap.keyboard.R
 
 /**
- * Hierarchical hint overlay displayed to the LEFT of the touched key.
- * Shows 6 direction groups (→ㅏ, ←ㅓ, ↑ㅗ, ↓ㅜ, ↗↖ㅣ, ↙↘ㅡ) and
- * the resulting vowel for each direction based on current gesture state.
+ * 3×3 grid-based radial hint overlay displayed to the LEFT of the touched key.
+ * Each cell position spatially matches the finger swipe direction:
+ *
+ *   ㅣ(↖)  ㅗ(↑)  ㅣ(↗)
+ *   ㅓ(←)  [key]  ㅏ(→)
+ *   ㅡ(↙)  ㅜ(↓)  ㅡ(↘)
+ *
  * Active direction is highlighted. Hints update hierarchically after each stroke.
  */
 class RadialVowelOverlay @JvmOverloads constructor(
@@ -19,8 +23,8 @@ class RadialVowelOverlay @JvmOverloads constructor(
     defStyleAttr: Int = 0
 ) : View(context, attrs, defStyleAttr) {
 
-    private var anchorX: Float = 0f  // Key center X (screen coords mapped to view)
-    private var anchorY: Float = 0f  // Key center Y
+    private var anchorX: Float = 0f
+    private var anchorY: Float = 0f
     private var activeDirection: String? = null
     private var currentKey: String? = null
     private var isShowing: Boolean = false
@@ -28,35 +32,40 @@ class RadialVowelOverlay @JvmOverloads constructor(
     // Hierarchical hints: direction -> resulting vowel/syllable text
     private var hintTexts: Map<String, String> = emptyMap()
 
+    // Grid cell definition
+    data class GridCell(
+        val vowelLabel: String,
+        val directionKey: String,
+        val row: Int,
+        val col: Int
+    )
+
+    // 8 direction cells in a 3×3 grid (center is the key label)
+    private val gridCells = listOf(
+        GridCell("ㅣ", "ㅣL", 0, 0),   // ↖ upper-left
+        GridCell("ㅗ", "ㅗ", 0, 1),    // ↑ up
+        GridCell("ㅣ", "ㅣR", 0, 2),   // ↗ upper-right
+        GridCell("ㅓ", "ㅓ", 1, 0),    // ← left
+        // (1,1) = center: current key
+        GridCell("ㅏ", "ㅏ", 1, 2),    // → right
+        GridCell("ㅡ", "ㅡL", 2, 0),   // ↙ lower-left
+        GridCell("ㅜ", "ㅜ", 2, 1),    // ↓ down
+        GridCell("ㅡ", "ㅡR", 2, 2),   // ↘ lower-right
+    )
+
     // Panel dimensions
-    private val panelWidth = 180f
-    private val panelHeight = 280f
-    private val rowHeight = 42f
+    private val cellSize = 64f
+    private val panelPadding = 6f
+    private val panelWidth = 3 * cellSize + 2 * panelPadding
+    private val panelHeight = 3 * cellSize + 2 * panelPadding
     private val cornerRadius = 12f
-    private val panelOffsetX = -200f  // Offset to the LEFT of key center
-    private val panelOffsetY = -140f  // Center vertically around key
+    private val panelGap = 16f  // gap between panel right edge and key center
 
-    // 8 directions grouped into display rows
-    // Each row: label, list of direction keys that map to this row
-    data class HintRow(
-        val label: String,
-        val arrow: String,
-        val directionKeys: List<String>
-    )
-
-    private val hintRows = listOf(
-        HintRow("→", "ㅏ", listOf("ㅏ")),
-        HintRow("←", "ㅓ", listOf("ㅓ")),
-        HintRow("↑", "ㅗ", listOf("ㅗ")),
-        HintRow("↓", "ㅜ", listOf("ㅜ")),
-        HintRow("↗↖", "ㅣ", listOf("ㅣR", "ㅣL")),
-        HintRow("↙↘", "ㅡ", listOf("ㅡL", "ㅡR")),
-    )
-
+    // Paints
     private val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
         color = ContextCompat.getColor(context, R.color.keyboard_background)
-        alpha = 230
+        alpha = 235
     }
 
     private val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -69,49 +78,49 @@ class RadialVowelOverlay @JvmOverloads constructor(
     private val activeBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
         color = ContextCompat.getColor(context, R.color.key_foreground)
-        alpha = 50
+        alpha = 55
     }
 
-    private val arrowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val vowelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        textAlign = Paint.Align.CENTER
+        textSize = 22f
+        color = ContextCompat.getColor(context, R.color.key_foreground)
+        alpha = 140
+    }
+
+    private val activeVowelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         textAlign = Paint.Align.CENTER
         textSize = 24f
-        color = ContextCompat.getColor(context, R.color.key_foreground)
-        alpha = 160
-    }
-
-    private val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        textAlign = Paint.Align.LEFT
-        textSize = 28f
         color = ContextCompat.getColor(context, R.color.key_foreground)
         typeface = Typeface.DEFAULT_BOLD
     }
 
     private val hintPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        textAlign = Paint.Align.RIGHT
-        textSize = 28f
+        textAlign = Paint.Align.CENTER
+        textSize = 20f
+        color = ContextCompat.getColor(context, R.color.key_foreground)
+        alpha = 100
+    }
+
+    private val activeHintPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        textAlign = Paint.Align.CENTER
+        textSize = 22f
         color = ContextCompat.getColor(context, R.color.key_foreground)
         typeface = Typeface.DEFAULT_BOLD
     }
 
-    private val activeHintPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        textAlign = Paint.Align.RIGHT
+    private val keyLabelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        textAlign = Paint.Align.CENTER
         textSize = 30f
         color = ContextCompat.getColor(context, R.color.key_foreground)
         typeface = Typeface.DEFAULT_BOLD
     }
 
-    private val dimPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        textAlign = Paint.Align.RIGHT
-        textSize = 28f
-        color = ContextCompat.getColor(context, R.color.key_foreground)
-        alpha = 80
-    }
-
-    private val currentVowelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val dimHintPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         textAlign = Paint.Align.CENTER
-        textSize = 32f
+        textSize = 18f
         color = ContextCompat.getColor(context, R.color.key_foreground)
-        typeface = Typeface.DEFAULT_BOLD
+        alpha = 50
     }
 
     fun show(cx: Float, cy: Float, key: String, hints: Map<String, String> = emptyMap()) {
@@ -150,9 +159,9 @@ class RadialVowelOverlay @JvmOverloads constructor(
         if (!isShowing) return
         super.onDraw(canvas)
 
-        // Calculate panel position (to the LEFT of the key)
-        var panelLeft = anchorX + panelOffsetX
-        var panelTop = anchorY + panelOffsetY
+        // Panel position: to the LEFT of the key center
+        var panelLeft = anchorX - panelWidth - panelGap
+        var panelTop = anchorY - panelHeight / 2f
 
         // Clamp to screen bounds
         if (panelLeft < 4f) panelLeft = 4f
@@ -165,45 +174,62 @@ class RadialVowelOverlay @JvmOverloads constructor(
         canvas.drawRoundRect(panelRect, cornerRadius, cornerRadius, bgPaint)
         canvas.drawRoundRect(panelRect, cornerRadius, cornerRadius, borderPaint)
 
-        // Draw current key + current vowel at top
-        val headerY = panelTop + 30f
-        val currentLabel = currentKey ?: ""
-        canvas.drawText(currentLabel, panelLeft + panelWidth / 2f, headerY, currentVowelPaint)
+        val gridLeft = panelLeft + panelPadding
+        val gridTop = panelTop + panelPadding
 
-        // Draw separator line
-        val sepY = panelTop + 44f
-        canvas.drawLine(panelLeft + 12f, sepY, panelLeft + panelWidth - 12f, sepY, borderPaint)
+        // Draw direction cells
+        for (cell in gridCells) {
+            val cellLeft = gridLeft + cell.col * cellSize
+            val cellTop = gridTop + cell.row * cellSize
+            val isActive = cell.directionKey == activeDirection
 
-        // Draw hint rows
-        val startY = panelTop + 52f
-        for ((i, row) in hintRows.withIndex()) {
-            val rowTop = startY + i * rowHeight
-            val rowBottom = rowTop + rowHeight
-            val isActive = row.directionKeys.contains(activeDirection)
-
-            // Highlight active row
+            // Highlight active cell
             if (isActive) {
-                val activeRect = RectF(panelLeft + 4f, rowTop, panelLeft + panelWidth - 4f, rowBottom)
-                canvas.drawRoundRect(activeRect, 6f, 6f, activeBgPaint)
+                val activeRect = RectF(
+                    cellLeft + 2f, cellTop + 2f,
+                    cellLeft + cellSize - 2f, cellTop + cellSize - 2f
+                )
+                canvas.drawRoundRect(activeRect, 8f, 8f, activeBgPaint)
             }
 
-            val textY = rowTop + rowHeight / 2f + 10f
+            val centerX = cellLeft + cellSize / 2f
 
-            // Draw arrow label
-            canvas.drawText(row.arrow, panelLeft + 28f, textY, arrowPaint)
+            // Draw base vowel label (upper part of cell)
+            val vowelY = cellTop + cellSize * 0.42f
+            canvas.drawText(
+                cell.vowelLabel, centerX, vowelY,
+                if (isActive) activeVowelPaint else vowelPaint
+            )
 
-            // Draw base vowel label
-            canvas.drawText(row.label, panelLeft + 52f, textY, labelPaint)
-
-            // Draw hint text (resulting vowel/syllable) - pick first available hint
-            val hintText = row.directionKeys.firstNotNullOfOrNull { hintTexts[it] }
+            // Draw hint text (lower part of cell)
+            val hintText = hintTexts[cell.directionKey]
             if (hintText != null) {
-                val paint = if (isActive) activeHintPaint else hintPaint
-                canvas.drawText(hintText, panelLeft + panelWidth - 16f, textY, paint)
+                val hintY = cellTop + cellSize * 0.78f
+                canvas.drawText(
+                    hintText, centerX, hintY,
+                    if (isActive) activeHintPaint else hintPaint
+                )
             } else {
-                // Show dimmed "—" if no transition available
-                canvas.drawText("—", panelLeft + panelWidth - 16f, textY, dimPaint)
+                // Show dimmed dash if no transition available
+                val hintY = cellTop + cellSize * 0.78f
+                canvas.drawText("—", centerX, hintY, dimHintPaint)
             }
         }
+
+        // Draw center cell: current key label
+        val centerCellLeft = gridLeft + 1 * cellSize
+        val centerCellTop = gridTop + 1 * cellSize
+        val centerCellBg = RectF(
+            centerCellLeft + 2f, centerCellTop + 2f,
+            centerCellLeft + cellSize - 2f, centerCellTop + cellSize - 2f
+        )
+        // Subtle border around center cell
+        canvas.drawRoundRect(centerCellBg, 8f, 8f, borderPaint)
+        canvas.drawText(
+            currentKey ?: "",
+            centerCellLeft + cellSize / 2f,
+            centerCellTop + cellSize * 0.6f,
+            keyLabelPaint
+        )
     }
 }
