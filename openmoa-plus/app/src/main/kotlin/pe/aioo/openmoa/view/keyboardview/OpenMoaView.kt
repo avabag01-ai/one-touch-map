@@ -129,6 +129,7 @@ class OpenMoaView : ConstraintLayout, KoinComponent {
     // Track which keys are showing vowels (keyView -> direction key like "ㅏ","ㅣR" etc.)
     private val vowelDisplayKeys = mutableMapOf<TextView, String>()
     private var pressedKeyView: TextView? = null
+    private var pressedKeyName: String? = null
 
     // --- Vowel Mode ---
 
@@ -136,6 +137,7 @@ class OpenMoaView : ConstraintLayout, KoinComponent {
         val pressedView = consonantKeyMap[pressedKeyName] ?: return
         vowelModeActive = true
         pressedKeyView = pressedView
+        this.pressedKeyName = pressedKeyName
 
         val pressedCx = pressedView.x + pressedView.width / 2f
         val pressedCy = pressedView.y + pressedView.height / 2f
@@ -218,6 +220,19 @@ class OpenMoaView : ConstraintLayout, KoinComponent {
     private fun highlightVowelDirection(direction: String?) {
         if (!vowelModeActive) return
 
+        // Update pressed key to show composed syllable
+        val pView = pressedKeyView
+        val pName = pressedKeyName
+        if (pView != null && pName != null) {
+            if (direction != null) {
+                val vowel = directionToVowelLabel(direction)
+                val composed = composeHangul(pName, vowel)
+                pView.text = composed ?: pName
+            } else {
+                pView.text = pName
+            }
+        }
+
         for ((keyView, dirKey) in vowelDisplayKeys) {
             val isMatch = when (direction) {
                 "ㅏ" -> dirKey == "ㅏ"
@@ -233,12 +248,28 @@ class OpenMoaView : ConstraintLayout, KoinComponent {
         }
     }
 
+    private fun composeHangul(consonant: String, vowel: String): String? {
+        val chosung = listOf("ㄱ","ㄲ","ㄴ","ㄷ","ㄸ","ㄹ","ㅁ","ㅂ","ㅃ","ㅅ","ㅆ","ㅇ","ㅈ","ㅉ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ")
+        val jungsung = listOf("ㅏ","ㅐ","ㅑ","ㅒ","ㅓ","ㅔ","ㅕ","ㅖ","ㅗ","ㅘ","ㅙ","ㅚ","ㅛ","ㅜ","ㅝ","ㅞ","ㅟ","ㅠ","ㅡ","ㅢ","ㅣ")
+        val choIdx = chosung.indexOf(consonant)
+        val jungIdx = jungsung.indexOf(vowel)
+        if (choIdx < 0 || jungIdx < 0) return null
+        val code = 0xAC00 + choIdx * 21 * 28 + jungIdx * 28
+        return String(charArrayOf(code.toChar()))
+    }
+
     private fun exitVowelMode() {
         if (!vowelModeActive) return
         vowelModeActive = false
 
-        pressedKeyView?.background = backgrounds[1]
+        val pView = pressedKeyView
+        if (pView != null) {
+            pView.background = backgrounds[1]
+            val originalText = savedKeyTexts[pView]
+            if (originalText != null) pView.text = originalText
+        }
         pressedKeyView = null
+        pressedKeyName = null
 
         for ((keyView, _) in vowelDisplayKeys) {
             val originalText = savedKeyTexts[keyView]
