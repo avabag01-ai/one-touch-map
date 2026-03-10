@@ -168,47 +168,22 @@ class OpenMoaView : ConstraintLayout, KoinComponent {
         // Highlight pressed key
         pressedView.background = backgrounds[0]
 
-        // Animate all consonant keys
         for ((name, keyView) in consonantKeyMap) {
             if (name == pressedKeyName) continue
 
             if (keyView in vowelKeyViews) {
-                // This key becomes a vowel key
                 val candidate = bestPerDirection.values.first { it.view == keyView }
                 val vowelLabel = directionToVowelLabel(candidate.direction)
                 vowelDisplayKeys[keyView] = candidate.direction
-
-                // Fade out → change to vowel → scale up + fade in
-                keyView.animate().cancel()
-                keyView.animate()
-                    .alpha(0f)
-                    .setDuration(60)
-                    .withEndAction {
-                        keyView.text = vowelLabel
-                        keyView.setTextColor(ContextCompat.getColor(context, com.onetouchmap.keyboard.R.color.vowel_highlight))
-                        keyView.animate()
-                            .alpha(1f)
-                            .scaleX(1.15f)
-                            .scaleY(1.15f)
-                            .setDuration(120)
-                            .start()
-                    }.start()
+                keyView.text = vowelLabel
+                keyView.setTextColor(ContextCompat.getColor(context, R.color.vowel_highlight))
             } else {
-                // Hide completely
-                keyView.animate().cancel()
-                keyView.animate()
-                    .alpha(0f)
-                    .scaleX(0.8f)
-                    .scaleY(0.8f)
-                    .setDuration(100)
-                    .start()
+                keyView.alpha = 0f
             }
         }
 
-        // Hide functional keys
         for (funcKey in functionalKeys) {
-            funcKey.animate().cancel()
-            funcKey.animate().alpha(0f).setDuration(80).start()
+            funcKey.alpha = 0f
         }
     }
 
@@ -254,15 +229,7 @@ class OpenMoaView : ConstraintLayout, KoinComponent {
                 else -> false
             }
 
-            if (isMatch) {
-                keyView.background = backgrounds[0]
-                keyView.animate().cancel()
-                keyView.animate().scaleX(1.3f).scaleY(1.3f).setDuration(80).start()
-            } else {
-                keyView.background = backgrounds[1]
-                keyView.animate().cancel()
-                keyView.animate().scaleX(1.15f).scaleY(1.15f).setDuration(80).start()
-            }
+            keyView.background = if (isMatch) backgrounds[0] else backgrounds[1]
         }
     }
 
@@ -270,49 +237,24 @@ class OpenMoaView : ConstraintLayout, KoinComponent {
         if (!vowelModeActive) return
         vowelModeActive = false
 
-        // Restore pressed key
         pressedKeyView?.background = backgrounds[1]
         pressedKeyView = null
 
-        // Restore vowel display keys
         for ((keyView, _) in vowelDisplayKeys) {
-            keyView.animate().cancel()
-            keyView.animate()
-                .alpha(0f)
-                .setDuration(60)
-                .withEndAction {
-                    val originalText = savedKeyTexts[keyView]
-                    if (originalText != null) keyView.text = originalText
-                    keyView.setTextColor(ContextCompat.getColor(context, com.onetouchmap.keyboard.R.color.key_foreground))
-                    keyView.background = backgrounds[1]
-                    keyView.animate()
-                        .alpha(1f)
-                        .scaleX(1f)
-                        .scaleY(1f)
-                        .setDuration(100)
-                        .start()
-                }.start()
+            val originalText = savedKeyTexts[keyView]
+            if (originalText != null) keyView.text = originalText
+            keyView.setTextColor(ContextCompat.getColor(context, R.color.key_foreground))
+            keyView.background = backgrounds[1]
         }
 
-        // Restore hidden consonant keys
         for ((_, keyView) in consonantKeyMap) {
-            if (keyView !in vowelDisplayKeys) {
-                val originalText = savedKeyTexts[keyView]
-                if (originalText != null) keyView.text = originalText
-                keyView.animate().cancel()
-                keyView.animate()
-                    .alpha(1f)
-                    .scaleX(1f)
-                    .scaleY(1f)
-                    .setDuration(120)
-                    .start()
-            }
+            keyView.alpha = 1f
+            keyView.scaleX = 1f
+            keyView.scaleY = 1f
         }
 
-        // Restore functional keys
         for (funcKey in functionalKeys) {
-            funcKey.animate().cancel()
-            funcKey.animate().alpha(1f).setDuration(100).start()
+            funcKey.alpha = 1f
         }
 
         vowelDisplayKeys.clear()
