@@ -225,7 +225,7 @@ class OpenMoaView : ConstraintLayout, KoinComponent {
         val pName = pressedKeyName
         if (pView != null && pName != null) {
             if (direction != null) {
-                val vowel = directionToVowelLabel(direction)
+                val vowel = directionToComposedVowel(direction)
                 val composed = composeHangul(pName, vowel)
                 pView.text = composed ?: pName
             } else {
@@ -245,6 +245,18 @@ class OpenMoaView : ConstraintLayout, KoinComponent {
             }
 
             keyView.background = if (isMatch) backgrounds[0] else backgrounds[1]
+        }
+    }
+
+    private fun directionToComposedVowel(direction: String): String {
+        return when (direction) {
+            "ㅏ" -> "ㅑ"
+            "ㅓ" -> "ㅕ"
+            "ㅗ" -> "ㅛ"
+            "ㅜ" -> "ㅠ"
+            "ㅣR", "ㅣL" -> "ㅣ"
+            "ㅡR", "ㅡL" -> "ㅡ"
+            else -> "ㅑ"
         }
     }
 
