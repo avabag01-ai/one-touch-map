@@ -27,10 +27,7 @@ jobs:
           
       - name: Install dependencies
         run: npm ci
-        
-      - name: Build Ionic app
-        run: npx ionic build
-        
+
       - name: Sync Capacitor
         run: npx cap sync android
         
