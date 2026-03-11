@@ -35,7 +35,7 @@ function loadSettings() {
             userName: '도도',
             mapSize: 3,
             dongs: ['전국코드', '중화동', '묵동', '망우동', '신내동', '상봉동', '면목동'],
-            roads: []
+            roads: ['가길', '나길', '다길', '라길']
         };
     }
 
@@ -287,7 +287,7 @@ function updateRoadTypeSelect() {
     // 설정에서 등록된 길종류 불러오기 (기본값 제외하고 동적으로 추가된 것들)
     // 기본: 로, 길, 안길 (이미 HTML에 하드코딩됨)
     // 추가: 가길, 나길, 다길, 번길 등 설정값
-    const roadTypes = settings.roads || ['가길', '나길', '다길', '번길'];
+    const roadTypes = (settings.roads && settings.roads.length > 0) ? settings.roads : ['가길', '나길', '다길', '라길'];
 
     // 키패드의 동적 슬롯 4개 (roadLink1 ~ roadLink4)
     for (let i = 1; i <= 4; i++) {
