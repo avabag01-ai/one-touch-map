@@ -107,8 +107,10 @@ function setupEventListeners() {
         updateFieldFocus();
     });
 
-    // 찾기 버튼 (지번 → 도로명 변환)
-    document.querySelector('.btn-find').addEventListener('click', searchAddress);
+    // 찾기 버튼 (지번 → 도로명 변환) - 액션바 + 키패드 사이드 둘 다
+    document.querySelectorAll('.btn-find, .btn-find-side').forEach(btn => {
+        btn.addEventListener('click', searchAddress);
+    });
 }
 
 // 키 입력 처리 - 항상 주소전(위 필드)에만 입력

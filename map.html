@@ -141,22 +141,21 @@
             transform-origin: center;
         }
 
-        /* 커스텀 마커 - 사각형, 외곽선 없음 */
+        /* 커스텀 마커 - 동적 크기, 텍스트에 맞춤 */
         .custom-marker {
             background: rgba(33, 150, 243, 0.9);
             color: white;
             border: none;
-            border-radius: 3px;
-            min-width: 24px;
-            height: 20px;
-            padding: 0 4px;
-            display: flex;
+            border-radius: 4px;
+            display: inline-flex;
             align-items: center;
             justify-content: center;
-            font-size: 10px;
-            font-weight: 500;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-            letter-spacing: 0.5px;
+            padding: 2px 5px;
+            font-size: 11px;
+            font-weight: 600;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+            letter-spacing: 0.3px;
+            white-space: nowrap;
         }
 
         .custom-marker.urgent {
