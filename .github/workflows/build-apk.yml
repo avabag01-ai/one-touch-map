@@ -3,60 +3,54 @@ name: Build Android APK
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    
     steps:
       - uses: actions/checkout@v4
-
+      
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-
+          
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
-
+          
       - name: Install dependencies
-        run: npm install
-
-      - name: Build web assets (src → www)
-        run: |
-          mkdir -p www
-          cp -r src/js/* www/ 2>/dev/null || true
-          cp -r src/css/* www/ 2>/dev/null || true
-          cp -r src/html/* www/ 2>/dev/null || true
-          cp manifest.json www/ 2>/dev/null || true
-          cp icon-*.png www/ 2>/dev/null || true
-
+        run: npm ci
+        
+      - name: Build Ionic app
+        run: npx ionic build
+        
       - name: Sync Capacitor
         run: npx cap sync android
-
+        
       - name: Build APK
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
-
-      - name: Upload APK artifact
+          
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: one-touch-map-debug
+          name: app-debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
-
+          
       - name: Create Release
-        if: github.event_name == 'push'
-        uses: softprops/action-gh-release@v2
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: softprops/action-gh-release@v1
         with:
-          tag_name: v1.0.${{ github.run_number }}
-          name: "원터치맵 v1.0.${{ github.run_number }}"
+          tag_name: v${{ github.run_number }}
           files: android/app/build/outputs/apk/debug/app-debug.apk
-          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
