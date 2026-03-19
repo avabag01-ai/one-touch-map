@@ -690,88 +690,50 @@
         }
 
         // ========================================
-        // 📍 초고속 반응 GPS 트래킹
+        // 📍 GPS 항상 표시 + 빠른 갱신
         // ========================================
         let gpsMarker = null;
         let watchId = null;
-        let isTracking = false;
-        let isUserInteracting = false;
+        let isFollowing = false; // 지도가 GPS를 따라가는 모드
 
-        // 지도 조작 감지
-        function setupInteractionListeners() {
-            if (!map) return;
-            const pause = () => { isUserInteracting = true; };
-            const resume = () => { setTimeout(() => isUserInteracting = false, 2000); };
-            map.on('movestart', pause); map.on('zoomstart', pause); map.on('dragstart', pause);
-            map.on('moveend', resume); map.on('zoomend', resume); map.on('dragend', resume);
-        }
+        document.getElementById('locationBtn').addEventListener('click', toggleFollowing);
 
-        document.getElementById('locationBtn').addEventListener('click', toggleTracking);
-
-        function toggleTracking() {
+        // GPS 위치 버튼: 따라가기 모드 토글
+        function toggleFollowing() {
             const btn = document.getElementById('locationBtn');
 
-            // 1. 이미 파란 점(GPS 마커)이 있다면? -> 0초 대기, 즉시 이동!
             if (gpsMarker) {
-                const center = map.getCenter();
+                // 파란점 있으면 즉시 그 위치로 이동
                 const markerLL = gpsMarker.getLatLng();
-                const dist = map.distance(center, markerLL);
-
-                // 중심에서 5m 이상 벗어나 있으면 -> "즉시 이동" (트래킹 안 끔)
-                if (dist > 5) {
-                    const bearing = (map.getBearing && typeof map.getBearing === 'function') ? map.getBearing() : 0;
-                    map.setView(markerLL, 17, {
-                        animate: true,
-                        duration: 0.3,
-                        easeLinearity: 0.25,
-                        bearing: bearing
-                    });
-
-                    // 만약 꺼져있던 상태라면 켜기
-                    if (!isTracking) {
-                        isTracking = true;
-                        btn.classList.add('active');
-                        startWatch();
-                    }
-                    return;
-                }
+                const bearing = (map.getBearing && typeof map.getBearing === 'function') ? map.getBearing() : 0;
+                map.setView(markerLL, 17, { animate: true, duration: 0.3, bearing: bearing });
             }
 
-            // 2. 트래킹 상태 토글 (중심에 있을 때만 꺼짐)
-            if (isTracking) {
-                stopWatch();
-                btn.classList.remove('active');
-            } else {
-                startWatch();
+            isFollowing = !isFollowing;
+            if (isFollowing) {
                 btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
             }
         }
 
-        function startWatch() {
-            if (!navigator.geolocation) { alert('GPS 불가'); return; }
-            isTracking = true;
-            setupInteractionListeners();
+        // GPS 항상 켜기 (페이지 열자마자)
+        function startGpsAlways() {
+            if (!navigator.geolocation) return;
 
-            // 초기 위치 잡기
-            if (!gpsMarker) {
-                navigator.geolocation.getCurrentPosition(updatePosition, null, { enableHighAccuracy: true, maximumAge: 0 });
-            }
+            // 초기 위치 즉시 확보
+            navigator.geolocation.getCurrentPosition(updatePosition, null, {
+                enableHighAccuracy: true, maximumAge: 5000
+            });
 
+            // 실시간 감시 (항상 켜져있음, 끄지 않음)
             if (watchId === null) {
                 watchId = navigator.geolocation.watchPosition(updatePosition, console.error, {
                     enableHighAccuracy: true,
                     maximumAge: 0,
-                    timeout: 5000
+                    timeout: 10000
                 });
             }
-        }
-
-        function stopWatch() {
-            if (watchId !== null) {
-                navigator.geolocation.clearWatch(watchId);
-                watchId = null;
-            }
-            isTracking = false;
         }
 
         function updatePosition(pos) {
@@ -784,6 +746,7 @@
                 map.getPane('gpsPane').style.pointerEvents = 'none';
             }
 
+            // 파란점 항상 표시 + 위치 갱신
             if (!gpsMarker) {
                 const icon = L.divIcon({ className: 'gps-pulse-icon', html: '<div class="gps-dot"></div><div class="gps-pulse"></div>', iconSize: [20, 20] });
                 gpsMarker = L.marker([lat, lng], { icon: icon, pane: 'gpsPane' }).addTo(map);
@@ -791,7 +754,8 @@
                 gpsMarker.setLatLng([lat, lng]);
             }
 
-            if (isTracking && !isUserInteracting) {
+            // 따라가기 모드일 때만 지도 이동
+            if (isFollowing) {
                 const bearing = (map.getBearing && typeof map.getBearing === 'function') ? map.getBearing() : 0;
                 map.setView([lat, lng], 17, { bearing: bearing, animate: true, duration: 0.2 });
             }
@@ -799,6 +763,7 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             initMap();
+            startGpsAlways(); // GPS 항상 켜기 (파란점 항상 표시)
             document.getElementById('layerToggleBtn').addEventListener('click', () => document.getElementById('layerFilter').classList.toggle('open'));
             map.on('click', () => document.getElementById('layerFilter').classList.remove('open'));
 
