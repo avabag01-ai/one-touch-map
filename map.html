@@ -256,6 +256,7 @@
     <script src="https://unpkg.com/leaflet.gridlayer.googlemutant@latest/dist/Leaflet.GoogleMutant.js"></script>
 
     <script src="android-back.js"></script>
+    <script src="national-regions.js"></script>
     <script src="route-optimizer.js"></script>
 
     <script>
@@ -472,6 +473,15 @@
                         const dongParts = delivery.dong.split('\n');
                         if (dongParts.length >= 3) {
                             regionPrefix = dongParts[1] + ' ' + dongParts[2] + ' ';
+                        } else {
+                            // 동 이름만 있고 시/구 정보가 없는 경우 national-regions에서 역검색
+                            const dongName = dongParts[0].trim();
+                            if (dongName && dongName !== '전국코드' && typeof findRegionByDong === 'function') {
+                                const region = findRegionByDong(dongName);
+                                if (region) {
+                                    regionPrefix = region.sido + ' ' + region.gugun + ' ';
+                                }
+                            }
                         }
                     }
 

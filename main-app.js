@@ -34,7 +34,7 @@ function loadSettings() {
         settings = {
             userName: '도도',
             mapSize: 3,
-            dongs: ['전국코드', '중화동', '묵동', '망우동', '신내동', '상봉동', '면목동'],
+            dongs: ['전국코드', '중화동\n서울특별시\n중랑구', '묵동\n서울특별시\n중랑구', '망우동\n서울특별시\n중랑구', '신내동\n서울특별시\n중랑구', '상봉동\n서울특별시\n중랑구', '면목동\n서울특별시\n중랑구'],
             roads: []
         };
     }
@@ -350,7 +350,17 @@ function searchAddress() {
             // "시도 구군 동" 형식으로 완전한 주소 구성
             queryAddress = `${dongParts[1]} ${dongParts[2]} ${dongName} ${queryAddress}`;
         } else {
-            queryAddress = `${dongName} ${queryAddress}`;
+            // 동 이름만 있는 경우 national-regions에서 시/구 자동 검색
+            if (typeof findRegionByDong === 'function') {
+                const region = findRegionByDong(dongName);
+                if (region) {
+                    queryAddress = `${region.sido} ${region.gugun} ${dongName} ${queryAddress}`;
+                } else {
+                    queryAddress = `${dongName} ${queryAddress}`;
+                }
+            } else {
+                queryAddress = `${dongName} ${queryAddress}`;
+            }
         }
     }
 
@@ -432,12 +442,31 @@ function searchAddress() {
     document.body.appendChild(script);
 }
 
+// 동 이름에 시/구 정보 보장 (없으면 national-regions에서 자동 검색하여 붙임)
+function ensureDongRegion(dongValue) {
+    if (!dongValue || dongValue === '전국코드') return dongValue;
+    const parts = dongValue.split('\n');
+    if (parts.length >= 3) return dongValue; // 이미 시/구 정보 있음
+    // 동 이름만 있는 경우 → 역검색
+    const dongName = parts[0].trim();
+    if (typeof findRegionByDong === 'function') {
+        const region = findRegionByDong(dongName);
+        if (region) {
+            return `${dongName}\n${region.sido}\n${region.gugun}`;
+        }
+    }
+    return dongValue;
+}
+
 // 배송 등록
 function registerDelivery() {
     if (!addressBefore && !addressAfter) {
         showToast('주소를 입력하세요');
         return;
     }
+
+    // 동에 시/구 정보 보장 (지오코딩 시 지방 매칭 방지)
+    const dongWithRegion = ensureDongRegion(selectedDong);
 
     // localStorage 불러오기
     let deliveries = JSON.parse(localStorage.getItem('deliveries') || '[]');
@@ -449,7 +478,7 @@ function registerDelivery() {
         // 이미 존재하는 주소라면 업데이트
         deliveries[existingIndex].addressAfter = addressAfter || deliveries[existingIndex].addressAfter;
         deliveries[existingIndex].fullAddress = addressAfter ? `${addressAfter}/${addressBefore}` : addressBefore;
-        deliveries[existingIndex].dong = selectedDong;
+        deliveries[existingIndex].dong = dongWithRegion;
         deliveries[existingIndex].priority = isUrgent ? 'urgent' : 'normal';
         localStorage.setItem('deliveries', JSON.stringify(deliveries));
         showToast('기존 배송지가 업데이트되었습니다');
@@ -460,7 +489,7 @@ function registerDelivery() {
             addressBefore: addressBefore,
             addressAfter: addressAfter,
             fullAddress: addressAfter ? `${addressAfter}/${addressBefore}` : addressBefore,
-            dong: selectedDong,
+            dong: dongWithRegion,
             priority: isUrgent ? 'urgent' : 'normal',
             status: 'pending',
             layer: 0,
