@@ -460,6 +460,25 @@
                 let lat = delivery.lat;
                 let lng = delivery.lng;
 
+                // 좌표 검증: 동이 서울인데 좌표가 서울 범위 밖이면 재지오코딩
+                // 서울 범위: lat 37.42~37.70, lng 126.76~127.18
+                if (lat && lng && delivery.dong) {
+                    const dongParts = delivery.dong.split('\n');
+                    let dongSido = (dongParts.length >= 2) ? dongParts[1] : '';
+                    if (!dongSido && dongParts[0] && typeof findRegionByDong === 'function') {
+                        const r = findRegionByDong(dongParts[0].trim());
+                        if (r) dongSido = r.sido;
+                    }
+                    if (dongSido === '서울특별시' && (lat < 37.42 || lat > 37.70 || lng < 126.76 || lng > 127.18)) {
+                        console.warn('좌표가 서울 범위 밖 → 재지오코딩:', delivery.addressBefore, lat, lng);
+                        lat = null;
+                        lng = null;
+                        deliveries[originalIndex].lat = null;
+                        deliveries[originalIndex].lng = null;
+                        needSave = true;
+                    }
+                }
+
                 // 좌표 없으면 지오코딩
                 if (!lat || !lng) {
                     // 도로명 주소(fullAddress)를 우선 사용하여 정확한 위치 매칭
