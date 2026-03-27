@@ -468,16 +468,37 @@ function registerDelivery() {
     // 동에 시/구 정보 보장 (지오코딩 시 지방 매칭 방지)
     const dongWithRegion = ensureDongRegion(selectedDong);
 
+    // addressBefore에 동 이름이 없으면 자동 포함 (숫자만 입력한 경우)
+    const dongName = extractDongName(selectedDong);
+    let finalAddressBefore = addressBefore;
+    if (dongName && dongName !== '전국코드' && addressBefore && !addressBefore.includes(dongName)) {
+        finalAddressBefore = dongName + ' ' + addressBefore;
+    }
+
+    // fullAddress 생성 시 지역 컨텍스트 포함 (지방 매칭 방지)
+    let fullAddress;
+    if (addressAfter) {
+        fullAddress = `${addressAfter}/${finalAddressBefore}`;
+    } else {
+        // 도로명 없을 때: 시/구/동 + 지번으로 완전한 주소 구성
+        const dongParts = dongWithRegion.split('\n');
+        if (dongParts.length >= 3) {
+            fullAddress = `${dongParts[1]} ${dongParts[2]} ${finalAddressBefore}`;
+        } else {
+            fullAddress = finalAddressBefore;
+        }
+    }
+
     // localStorage 불러오기
     let deliveries = JSON.parse(localStorage.getItem('deliveries') || '[]');
 
     // 중복 확인 (같은 지번 주소가 있는지)
-    const existingIndex = deliveries.findIndex(d => d.addressBefore === addressBefore);
+    const existingIndex = deliveries.findIndex(d => d.addressBefore === finalAddressBefore);
 
     if (existingIndex !== -1) {
         // 이미 존재하는 주소라면 업데이트
         deliveries[existingIndex].addressAfter = addressAfter || deliveries[existingIndex].addressAfter;
-        deliveries[existingIndex].fullAddress = addressAfter ? `${addressAfter}/${addressBefore}` : addressBefore;
+        deliveries[existingIndex].fullAddress = fullAddress;
         deliveries[existingIndex].dong = dongWithRegion;
         deliveries[existingIndex].priority = isUrgent ? 'urgent' : 'normal';
         localStorage.setItem('deliveries', JSON.stringify(deliveries));
@@ -486,9 +507,9 @@ function registerDelivery() {
         // 새로운 배송지 등록
         const delivery = {
             id: Date.now(),
-            addressBefore: addressBefore,
+            addressBefore: finalAddressBefore,
             addressAfter: addressAfter,
-            fullAddress: addressAfter ? `${addressAfter}/${addressBefore}` : addressBefore,
+            fullAddress: fullAddress,
             dong: dongWithRegion,
             priority: isUrgent ? 'urgent' : 'normal',
             status: 'pending',

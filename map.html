@@ -485,8 +485,18 @@
                         }
                     }
 
-                    // 우선순위: 도로명 > fullAddress > 지번(지역 컨텍스트 포함)
-                    let address = roadAddr || fullAddr || (regionPrefix + jibunAddr) || jibunAddr;
+                    // 우선순위: 도로명 > 지역+지번 > fullAddress
+                    // regionPrefix가 있으면 반드시 지번에 붙여서 정확한 지역 매칭
+                    let address;
+                    if (roadAddr) {
+                        // 도로명주소가 있으면 그대로 사용 (전국 고유)
+                        address = roadAddr;
+                    } else if (regionPrefix && jibunAddr) {
+                        // 지번주소에 시/구 컨텍스트 포함 (지방 매칭 방지)
+                        address = regionPrefix + jibunAddr;
+                    } else {
+                        address = fullAddr || jibunAddr;
+                    }
                     if (address) {
                         const coord = await geocodeAddressVWorld(address);
                         if (coord) {
