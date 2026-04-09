@@ -151,10 +151,17 @@ const RouteOptimizer = {
 
                 if (data && data.response && data.response.status === 'OK' && data.response.result && data.response.result.point) {
                     const point = data.response.result.point;
-                    resolve({
+                    const result = {
                         lat: parseFloat(point.y),
                         lng: parseFloat(point.x)
-                    });
+                    };
+                    // API 응답에 도로명주소가 포함되어 있으면 함께 반환
+                    // (역지오코딩보다 정확 — 좌표 오차로 옆 건물 주소 나오는 문제 방지)
+                    const text = data.response.result.text;
+                    if (text && /[로길]\s*\d/.test(text)) {
+                        result.roadAddress = text;
+                    }
+                    resolve(result);
                 } else {
                     resolve(null);
                 }

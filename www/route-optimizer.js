@@ -77,34 +77,41 @@ const RouteOptimizer = {
 
     // VWorld Geocoder API (JSONP 방식 - CORS 해결)
     // ✅ 전국 모드 지원: 특정 지역을 하드코딩하지 않고 주소 그대로 사용
+    // ✅ 주소 유형 자동 판별: 도로명(로/길 포함)이면 ROAD 우선, 아니면 PARCEL 우선
     async fetchVWorldCoord(address) {
         if (!address) return null;
 
         // fullAddress 형식: "도로명주소/지번주소" 또는 "지번주소"
         // "/" 로 분리해서 도로명과 지번을 개별 시도
         const parts = address.split('/');
-        const roadAddr = parts[0] ? parts[0].trim() : null;
-        const jibunAddr = parts[1] ? parts[1].trim() : null;
+        const firstPart = parts[0] ? parts[0].trim() : null;
+        const secondPart = parts[1] ? parts[1].trim() : null;
 
-        // 1순위: 지번(PARCEL) 시도
+        // 주소 유형 자동 판별: 로/길/대로가 있으면 도로명
+        const isRoadAddress = (addr) => addr && /[로길](\s|\d|$)|대로/.test(addr);
+
         let coords = null;
-        if (jibunAddr) {
-            coords = await this._fetchGeocode(jibunAddr, 'PARCEL');
-        }
 
-        // 2순위: 도로명(ROAD) 시도
-        if (!coords && roadAddr) {
-            coords = await this._fetchGeocode(roadAddr, 'ROAD');
-        }
-
-        // 3순위: 원본 주소 전체로 PARCEL 시도
-        if (!coords) {
-            coords = await this._fetchGeocode(address, 'PARCEL');
-        }
-
-        // 4순위: 원본 주소 전체로 ROAD 시도
-        if (!coords) {
-            coords = await this._fetchGeocode(address, 'ROAD');
+        if (parts.length >= 2 && firstPart && secondPart) {
+            // "/" 구분자가 있으면: 도로명/지번 쌍
+            // 도로명 파트를 ROAD로, 지번 파트를 PARCEL로 시도
+            if (isRoadAddress(firstPart)) {
+                coords = await this._fetchGeocode(firstPart, 'ROAD');
+                if (!coords) coords = await this._fetchGeocode(secondPart, 'PARCEL');
+            } else {
+                coords = await this._fetchGeocode(secondPart, 'ROAD');
+                if (!coords) coords = await this._fetchGeocode(firstPart, 'PARCEL');
+            }
+        } else {
+            // 단일 주소: 유형 판별 후 적합한 타입 먼저 시도
+            if (isRoadAddress(address)) {
+                coords = await this._fetchGeocode(address, 'ROAD');
+                if (!coords) coords = await this._fetchGeocode(address, 'PARCEL');
+            } else {
+                // 지번 주소 → PARCEL 먼저 (ROAD 먼저 하면 NOT_FOUND)
+                coords = await this._fetchGeocode(address, 'PARCEL');
+                if (!coords) coords = await this._fetchGeocode(address, 'ROAD');
+            }
         }
 
         return coords;
@@ -144,10 +151,17 @@ const RouteOptimizer = {
 
                 if (data && data.response && data.response.status === 'OK' && data.response.result && data.response.result.point) {
                     const point = data.response.result.point;
-                    resolve({
+                    const result = {
                         lat: parseFloat(point.y),
                         lng: parseFloat(point.x)
-                    });
+                    };
+                    // API 응답에 도로명주소가 포함되어 있으면 함께 반환
+                    // (역지오코딩보다 정확 — 좌표 오차로 옆 건물 주소 나오는 문제 방지)
+                    const text = data.response.result.text;
+                    if (text && /[로길]\s*\d/.test(text)) {
+                        result.roadAddress = text;
+                    }
+                    resolve(result);
                 } else {
                     resolve(null);
                 }

@@ -532,10 +532,15 @@
                             deliveries[originalIndex].lng = lng;
                             needSave = true;
 
-                            // 도로명주소 조회 (역지오코딩)
-                            const fetchedRoadAddr = await getRoadAddressFromCoords(lat, lng);
-                            if (fetchedRoadAddr) {
-                                deliveries[originalIndex].roadAddress = fetchedRoadAddr;
+                            // 도로명주소: API 매칭 결과 우선, 없으면 역지오코딩 fallback
+                            // (역지오코딩은 좌표 오차로 옆 건물 주소가 나올 수 있음)
+                            if (coord.roadAddress) {
+                                deliveries[originalIndex].roadAddress = coord.roadAddress;
+                            } else {
+                                const fetchedRoadAddr = await getRoadAddressFromCoords(lat, lng);
+                                if (fetchedRoadAddr) {
+                                    deliveries[originalIndex].roadAddress = fetchedRoadAddr;
+                                }
                             }
                         }
                     }
