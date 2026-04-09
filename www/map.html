@@ -556,6 +556,21 @@
                     }
                 }
 
+                // 좌표는 있지만 roadAddress가 없는 경우 → 다중 방향 역지오코딩으로 도로명 후보 수집
+                if (lat && lng && !delivery.roadAddress) {
+                    const jibunForPopup = delivery.addressBefore || delivery.fullAddress || '';
+                    const candidates = await getMultiDirectionRoadAddresses(lat, lng);
+
+                    if (candidates.length >= 2) {
+                        const selected = await showRoadAddressSelector(jibunForPopup, candidates);
+                        deliveries[originalIndex].roadAddress = selected;
+                        needSave = true;
+                    } else if (candidates.length === 1) {
+                        deliveries[originalIndex].roadAddress = candidates[0];
+                        needSave = true;
+                    }
+                }
+
                 if (lat && lng) {
                     const markerDiv = document.createElement('div');
                     markerDiv.className = 'custom-marker';
