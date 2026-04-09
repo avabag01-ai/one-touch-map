@@ -556,17 +556,37 @@
                     }
                 }
 
-                // 좌표는 있지만 roadAddress가 없는 경우 → 다중 방향 역지오코딩으로 도로명 후보 수집
-                if (lat && lng && !delivery.roadAddress) {
+                // 도로명주소 후보 수집: roadAddressVerified가 아직 안 된 배송지만 처리
+                if (lat && lng && !delivery.roadAddressVerified) {
                     const jibunForPopup = delivery.addressBefore || delivery.fullAddress || '';
                     const candidates = await getMultiDirectionRoadAddresses(lat, lng);
+
+                    // 기존 addressAfter도 후보에 포함 (이미 있으면 중복 방지됨)
+                    if (delivery.addressAfter && /[로길]/.test(delivery.addressAfter)) {
+                        const existingRoad = delivery.addressAfter.trim();
+                        if (!candidates.includes(existingRoad)) {
+                            // 같은 도로명인지 확인
+                            const existName = existingRoad.replace(/\s*\d+(-\d+)?(\s*\(.*\))?$/, '').trim();
+                            const isDupe = candidates.some(c => {
+                                const cName = c.replace(/\s*\d+(-\d+)?(\s*\(.*\))?$/, '').trim();
+                                return cName === existName;
+                            });
+                            if (!isDupe) candidates.push(existingRoad);
+                        }
+                    }
 
                     if (candidates.length >= 2) {
                         const selected = await showRoadAddressSelector(jibunForPopup, candidates);
                         deliveries[originalIndex].roadAddress = selected;
+                        deliveries[originalIndex].roadAddressVerified = true;
                         needSave = true;
                     } else if (candidates.length === 1) {
                         deliveries[originalIndex].roadAddress = candidates[0];
+                        deliveries[originalIndex].roadAddressVerified = true;
+                        needSave = true;
+                    } else {
+                        // 후보 0개 → 기존 값 유지, 다시 시도하지 않도록 마킹
+                        deliveries[originalIndex].roadAddressVerified = true;
                         needSave = true;
                     }
                 }
