@@ -111,6 +111,16 @@ const RouteOptimizer = {
                 // 지번 주소 → PARCEL 먼저 (ROAD 먼저 하면 NOT_FOUND)
                 coords = await this._fetchGeocode(address, 'PARCEL');
                 if (!coords) coords = await this._fetchGeocode(address, 'ROAD');
+
+                // 지번 검색 성공 시, ROAD 타입도 추가 시도하여 다른 도로명 후보 수집
+                if (coords) {
+                    const roadResult = await this._fetchGeocode(address, 'ROAD');
+                    if (roadResult && roadResult.roadAddress && roadResult.roadAddress !== coords.roadAddress) {
+                        if (!coords.roadCandidates) coords.roadCandidates = [];
+                        if (coords.roadAddress) coords.roadCandidates.push(coords.roadAddress);
+                        coords.roadCandidates.push(roadResult.roadAddress);
+                    }
+                }
             }
         }
 

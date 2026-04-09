@@ -532,15 +532,27 @@
                             deliveries[originalIndex].lng = lng;
                             needSave = true;
 
-                            // 도로명주소: API 매칭 결과 우선, 없으면 역지오코딩 fallback
-                            // (역지오코딩은 좌표 오차로 옆 건물 주소가 나올 수 있음)
-                            if (coord.roadAddress) {
-                                deliveries[originalIndex].roadAddress = coord.roadAddress;
-                            } else {
-                                const fetchedRoadAddr = await getRoadAddressFromCoords(lat, lng);
-                                if (fetchedRoadAddr) {
-                                    deliveries[originalIndex].roadAddress = fetchedRoadAddr;
-                                }
+                            // 도로명주소 후보 수집 (API 매칭 + 역지오코딩)
+                            const candidates = [];
+                            if (coord.roadCandidates && coord.roadCandidates.length > 0) {
+                                // route-optimizer가 수집한 후보들
+                                candidates.push(...coord.roadCandidates);
+                            } else if (coord.roadAddress) {
+                                candidates.push(coord.roadAddress);
+                            }
+                            // 역지오코딩으로 추가 후보 확보
+                            const reverseAddr = await getRoadAddressFromCoords(lat, lng);
+                            if (reverseAddr && !candidates.includes(reverseAddr)) {
+                                candidates.push(reverseAddr);
+                            }
+
+                            if (candidates.length >= 2) {
+                                // 후보 2개 이상 → 사용자 선택 팝업
+                                const jibun = delivery.addressBefore || address;
+                                const selected = await showRoadAddressSelector(jibun, candidates);
+                                deliveries[originalIndex].roadAddress = selected;
+                            } else if (candidates.length === 1) {
+                                deliveries[originalIndex].roadAddress = candidates[0];
                             }
                         }
                     }
@@ -660,6 +672,54 @@
         let vworldBaseLayer;
         let addressLayer; // 도로명주소 레이어
         const VWORLD_KEY = 'EEB68327-5D04-3BE3-9072-D3ECFCCC26A2';
+
+        // 도로명주소 후보가 여러 개일 때 사용자 선택 팝업 (Promise 반환)
+        function showRoadAddressSelector(jibunAddr, candidates) {
+            return new Promise((resolve) => {
+                // 기존 팝업 제거
+                const existing = document.getElementById('roadAddrSelector');
+                if (existing) existing.remove();
+
+                const modal = document.createElement('div');
+                modal.id = 'roadAddrSelector';
+                modal.className = 'modal-overlay';
+                modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);backdrop-filter:blur(8px);z-index:3000;display:flex;align-items:flex-end;justify-content:center;';
+
+                let btnsHtml = candidates.map((addr, i) => `
+                    <button class="road-candidate-btn" data-idx="${i}"
+                        style="width:100%;padding:14px 16px;margin-bottom:8px;background:#fff;border:2px solid #1976D2;border-radius:10px;font-size:15px;color:#1976D2;font-weight:600;cursor:pointer;text-align:left;">
+                        📍 ${addr}
+                    </button>
+                `).join('');
+
+                modal.innerHTML = `
+                    <div style="background:#fff;width:100%;max-width:400px;border-radius:16px 16px 0 0;padding:20px 16px 24px;box-shadow:0 -4px 20px rgba(0,0,0,0.15);">
+                        <div style="font-size:13px;color:#888;margin-bottom:4px;">도로명주소가 여러 개 매칭됨</div>
+                        <div style="font-size:16px;font-weight:700;color:#333;margin-bottom:16px;">🏠 ${jibunAddr}</div>
+                        ${btnsHtml}
+                        <button id="roadAddrSkip" style="width:100%;padding:12px;background:#f5f5f5;border:1px solid #ddd;border-radius:10px;font-size:14px;color:#666;cursor:pointer;margin-top:4px;">
+                            건너뛰기
+                        </button>
+                    </div>
+                `;
+
+                document.body.appendChild(modal);
+
+                // 후보 버튼 클릭
+                modal.querySelectorAll('.road-candidate-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        modal.remove();
+                        resolve(candidates[parseInt(btn.dataset.idx)]);
+                    });
+                });
+
+                // 건너뛰기 → 첫 번째 후보 사용
+                document.getElementById('roadAddrSkip').addEventListener('click', () => {
+                    modal.remove();
+                    resolve(candidates[0]);
+                });
+            });
+        }
 
         // 좌표로 도로명주소 조회 (VWorld API)
         async function getRoadAddressFromCoords(lat, lng) {
