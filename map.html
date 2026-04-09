@@ -504,17 +504,24 @@
                         }
                     }
 
-                    // 우선순위: 도로명 > 지역+지번 > fullAddress
-                    // regionPrefix가 있으면 반드시 지번에 붙여서 정확한 지역 매칭
+                    // 우선순위: 도로명(신주소) > 지역+지번 > fullAddress
+                    // 도로명주소는 전국 고유하므로 가장 정확함
                     let address;
                     if (roadAddr) {
                         // 도로명주소가 있으면 그대로 사용 (전국 고유)
                         address = roadAddr;
+                    } else if (fullAddr && /[로길]\s*\d/.test(fullAddr)) {
+                        // fullAddress에 도로명 패턴이 있으면 우선 사용
+                        address = fullAddr;
                     } else if (regionPrefix && jibunAddr) {
                         // 지번주소에 시/구 컨텍스트 포함 (지방 매칭 방지)
                         address = regionPrefix + jibunAddr;
+                    } else if (jibunAddr) {
+                        // regionPrefix 없어도 동 이름으로 보강 시도
+                        const dongName = delivery.dong ? delivery.dong.split('\n')[0].trim() : '';
+                        address = dongName ? dongName + ' ' + jibunAddr : fullAddr || jibunAddr;
                     } else {
-                        address = fullAddr || jibunAddr;
+                        address = fullAddr;
                     }
                     if (address) {
                         const coord = await geocodeAddressVWorld(address);
