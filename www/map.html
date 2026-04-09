@@ -532,27 +532,17 @@
                             deliveries[originalIndex].lng = lng;
                             needSave = true;
 
-                            // 도로명주소 후보 수집 (Search API + 역지오코딩)
-                            const candidates = [];
-
-                            // 1) VWorld Search API로 지번→도로명 후보 검색 (가장 정확)
+                            // 도로명주소 후보 수집 (다중 방향 역지오코딩)
                             const jibun = delivery.addressBefore || address;
-                            const searchResults = await searchRoadAddressesForParcel(jibun);
-                            candidates.push(...searchResults);
+                            const candidates = await getMultiDirectionRoadAddresses(lat, lng);
 
-                            // 2) route-optimizer가 수집한 후보 추가
+                            // route-optimizer가 수집한 후보도 추가
                             if (coord.roadCandidates && coord.roadCandidates.length > 0) {
                                 for (const rc of coord.roadCandidates) {
                                     if (!candidates.includes(rc)) candidates.push(rc);
                                 }
                             } else if (coord.roadAddress && !candidates.includes(coord.roadAddress)) {
                                 candidates.push(coord.roadAddress);
-                            }
-
-                            // 3) 역지오코딩으로 추가 후보 확보
-                            const reverseAddr = await getRoadAddressFromCoords(lat, lng);
-                            if (reverseAddr && !candidates.includes(reverseAddr)) {
-                                candidates.push(reverseAddr);
                             }
 
                             if (candidates.length >= 2) {
@@ -748,52 +738,32 @@
             return null;
         }
 
-        // 지번주소로 도로명주소 후보 검색 (VWorld Search API - 여러 결과 반환 가능)
-        function searchRoadAddressesForParcel(parcelAddr) {
-            return new Promise((resolve) => {
-                const callbackName = 'roadSearch_' + Date.now() + '_' + Math.round(Math.random() * 100000);
-                const script = document.createElement('script');
-                let completed = false;
-
-                const timeout = setTimeout(() => {
-                    if (!completed) { completed = true; cleanup(); resolve([]); }
-                }, 5000);
-
-                const cleanup = () => {
-                    clearTimeout(timeout);
-                    delete window[callbackName];
-                    if (script.parentNode) script.parentNode.removeChild(script);
-                };
-
-                window[callbackName] = function(data) {
-                    if (completed) return;
-                    completed = true;
-                    cleanup();
-
-                    const roads = [];
-                    try {
-                        if (data.response && data.response.status === 'OK' && data.response.result) {
-                            const items = data.response.result.items;
-                            if (items) {
-                                for (const item of items) {
-                                    if (item.address && item.address.road) {
-                                        const road = item.address.road.trim();
-                                        if (road && !roads.includes(road)) roads.push(road);
-                                    }
-                                }
-                            }
-                        }
-                    } catch(e) { console.error('Road search parse error:', e); }
-                    resolve(roads);
-                };
-
-                script.onerror = () => { if (!completed) { completed = true; cleanup(); resolve([]); } };
-
-                const apiKey = (typeof RouteOptimizer !== 'undefined' && RouteOptimizer.VWORLD_API_KEY)
-                    ? RouteOptimizer.VWORLD_API_KEY : VWORLD_KEY;
-                script.src = `https://api.vworld.kr/req/search?service=search&request=search&version=2.0&crs=epsg:4326&query=${encodeURIComponent(parcelAddr)}&type=address&category=parcel&format=json&key=${apiKey}&callback=${callbackName}`;
-                document.body.appendChild(script);
+        // 다중 방향 역지오코딩으로 도로명주소 후보 수집 (8방향 + 중심)
+        // 필지 중심 좌표가 도로 경계에 걸리면 방향별로 다른 도로명이 나옴
+        async function getMultiDirectionRoadAddresses(lat, lng) {
+            const OFFSET = 0.00009; // 약 10m
+            const offsets = [
+                [0, 0], [OFFSET, 0], [-OFFSET, 0], [0, OFFSET], [0, -OFFSET],
+                [OFFSET, OFFSET], [OFFSET, -OFFSET], [-OFFSET, OFFSET], [-OFFSET, -OFFSET]
+            ];
+            const candidates = [];
+            const fetches = offsets.map(([dy, dx]) => {
+                const pLat = lat + dy;
+                const pLng = lng + dx;
+                return getRoadAddressFromCoords(pLat, pLng).then(addr => {
+                    if (addr && !candidates.includes(addr)) {
+                        // 도로명만 추출해서 같은 도로의 다른 번지는 제거 (예: 봉화산로8길 3 vs 봉화산로8길 7)
+                        const roadName = addr.replace(/\s*\d+(-\d+)?(\s*\(.*\))?$/, '').trim();
+                        const existing = candidates.find(c => {
+                            const existName = c.replace(/\s*\d+(-\d+)?(\s*\(.*\))?$/, '').trim();
+                            return existName === roadName;
+                        });
+                        if (!existing) candidates.push(addr);
+                    }
+                }).catch(() => {});
             });
+            await Promise.all(fetches);
+            return candidates;
         }
 
         // 지도 클릭 시 신주소 조회 (역지오코딩)
