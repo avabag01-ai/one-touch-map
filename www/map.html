@@ -532,15 +532,24 @@
                             deliveries[originalIndex].lng = lng;
                             needSave = true;
 
-                            // 도로명주소 후보 수집 (API 매칭 + 역지오코딩)
+                            // 도로명주소 후보 수집 (Search API + 역지오코딩)
                             const candidates = [];
+
+                            // 1) VWorld Search API로 지번→도로명 후보 검색 (가장 정확)
+                            const jibun = delivery.addressBefore || address;
+                            const searchResults = await searchRoadAddressesForParcel(jibun);
+                            candidates.push(...searchResults);
+
+                            // 2) route-optimizer가 수집한 후보 추가
                             if (coord.roadCandidates && coord.roadCandidates.length > 0) {
-                                // route-optimizer가 수집한 후보들
-                                candidates.push(...coord.roadCandidates);
-                            } else if (coord.roadAddress) {
+                                for (const rc of coord.roadCandidates) {
+                                    if (!candidates.includes(rc)) candidates.push(rc);
+                                }
+                            } else if (coord.roadAddress && !candidates.includes(coord.roadAddress)) {
                                 candidates.push(coord.roadAddress);
                             }
-                            // 역지오코딩으로 추가 후보 확보
+
+                            // 3) 역지오코딩으로 추가 후보 확보
                             const reverseAddr = await getRoadAddressFromCoords(lat, lng);
                             if (reverseAddr && !candidates.includes(reverseAddr)) {
                                 candidates.push(reverseAddr);
@@ -548,7 +557,6 @@
 
                             if (candidates.length >= 2) {
                                 // 후보 2개 이상 → 사용자 선택 팝업
-                                const jibun = delivery.addressBefore || address;
                                 const selected = await showRoadAddressSelector(jibun, candidates);
                                 deliveries[originalIndex].roadAddress = selected;
                             } else if (candidates.length === 1) {
@@ -738,6 +746,54 @@
                 console.error("Road address fetch failed", e);
             }
             return null;
+        }
+
+        // 지번주소로 도로명주소 후보 검색 (VWorld Search API - 여러 결과 반환 가능)
+        function searchRoadAddressesForParcel(parcelAddr) {
+            return new Promise((resolve) => {
+                const callbackName = 'roadSearch_' + Date.now() + '_' + Math.round(Math.random() * 100000);
+                const script = document.createElement('script');
+                let completed = false;
+
+                const timeout = setTimeout(() => {
+                    if (!completed) { completed = true; cleanup(); resolve([]); }
+                }, 5000);
+
+                const cleanup = () => {
+                    clearTimeout(timeout);
+                    delete window[callbackName];
+                    if (script.parentNode) script.parentNode.removeChild(script);
+                };
+
+                window[callbackName] = function(data) {
+                    if (completed) return;
+                    completed = true;
+                    cleanup();
+
+                    const roads = [];
+                    try {
+                        if (data.response && data.response.status === 'OK' && data.response.result) {
+                            const items = data.response.result.items;
+                            if (items) {
+                                for (const item of items) {
+                                    if (item.address && item.address.road) {
+                                        const road = item.address.road.trim();
+                                        if (road && !roads.includes(road)) roads.push(road);
+                                    }
+                                }
+                            }
+                        }
+                    } catch(e) { console.error('Road search parse error:', e); }
+                    resolve(roads);
+                };
+
+                script.onerror = () => { if (!completed) { completed = true; cleanup(); resolve([]); } };
+
+                const apiKey = (typeof RouteOptimizer !== 'undefined' && RouteOptimizer.VWORLD_API_KEY)
+                    ? RouteOptimizer.VWORLD_API_KEY : VWORLD_KEY;
+                script.src = `https://api.vworld.kr/req/search?service=search&request=search&version=2.0&crs=epsg:4326&query=${encodeURIComponent(parcelAddr)}&type=address&category=parcel&format=json&key=${apiKey}&callback=${callbackName}`;
+                document.body.appendChild(script);
+            });
         }
 
         // 지도 클릭 시 신주소 조회 (역지오코딩)
