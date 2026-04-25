@@ -4,7 +4,7 @@ android {
     namespace "com.aegis.map.pro"
     compileSdk rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.aegis.map.pro"
+        applicationId "com.avabag01.onetouchmap"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
