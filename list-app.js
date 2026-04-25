@@ -3,6 +3,7 @@
 let deliveries = [];
 let selectedIds = new Set();
 let selectedDate = new Date().toISOString().split('T')[0];
+let currentFilter = 'all'; // 'all' or 'now'
 
 // 초기화
 document.addEventListener('DOMContentLoaded', () => {
@@ -58,10 +59,15 @@ function renderList() {
     container.innerHTML = '';
 
     // 날짜 필터링 (createdAt이 selectedDate와 일치하는 것만)
-    const filteredDeliveries = deliveries.filter(d => {
+    let filteredDeliveries = deliveries.filter(d => {
         if (!d.createdAt) return selectedDate === new Date().toISOString().split('T')[0];
         return d.createdAt === selectedDate;
     });
+
+    // '지금갈곳' 필터링 (지도와 연동)
+    if (currentFilter === 'now') {
+        filteredDeliveries = filteredDeliveries.filter(d => d.urgent || (d.layer && d.layer > 0));
+    }
 
     if (filteredDeliveries.length === 0) {
         container.innerHTML = `
@@ -107,18 +113,18 @@ function renderList() {
                 <!-- 전화번호 -->
                 <div class="phone-area">
                     ${delivery.phone
-                        ? `<a href="tel:${delivery.phone}" class="phone-link">📞 ${delivery.phone}</a>`
-                        : `<input type="tel" class="inline-input tel-input" placeholder="전화번호 입력"
+                ? `<a href="tel:${delivery.phone}" class="phone-link">📞 ${delivery.phone}</a>`
+                : `<input type="tel" class="inline-input tel-input" placeholder="전화번호 입력"
                                value="" onchange="updatePhone('${delivery.id}', this.value)">`
-                    }
+            }
                 </div>
 
                 <!-- 메모 -->
                 <div class="memo-area" onclick="openMemo('${delivery.id}', event)">
                     ${delivery.memo
-                        ? `<span class="memo-text">📝 ${delivery.memo}</span>`
-                        : `<span class="memo-placeholder">📝 메모</span>`
-                    }
+                ? `<span class="memo-text">📝 ${delivery.memo}</span>`
+                : `<span class="memo-placeholder">📝 메모</span>`
+            }
                 </div>
             </div>
         `;
@@ -282,16 +288,31 @@ function setupEventListeners() {
     });
 
     // 순서 변경 버튼
-    document.getElementById('reorderBtn').addEventListener('click', () => {
-        alert('순서 변경 기능은 곧 추가됩니다');
+    // 순서 변경 버튼 (아직 없음)
+    // document.getElementById('reorderBtn')?.addEventListener('click', ...);
+
+    // 지금갈곳 관리 버튼들
+    document.getElementById('saveToNowBtn').addEventListener('click', () => {
+        assignNow(1);
     });
 
-    // 레이어 버튼들
-    document.querySelectorAll('.layer-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const layer = parseInt(btn.dataset.layer);
-            assignLayer(layer);
-        });
+    document.getElementById('clearNowBtn').addEventListener('click', () => {
+        assignNow(0);
+    });
+
+    // 리스트 토글 버튼
+    document.getElementById('listToggleBtn').addEventListener('click', () => {
+        const btn = document.getElementById('listToggleBtn');
+        if (currentFilter === 'all') {
+            currentFilter = 'now';
+            btn.textContent = '지금갈곳';
+            btn.style.background = '#FF5252';
+        } else {
+            currentFilter = 'all';
+            btn.textContent = '전체보기';
+            btn.style.background = '#673AB7';
+        }
+        renderList();
     });
 }
 
@@ -370,10 +391,10 @@ function updateDateDisplay() {
     document.getElementById('datePicker').value = selectedDate;
 }
 
-// 레이어 할당
-function assignLayer(layerNum) {
+// 지금갈곳 할당 (지도 연동 호환)
+function assignNow(layerNum) {
     if (selectedIds.size === 0) {
-        alert('레이어에 저장할 항목을 선택하세요');
+        alert('항목을 선택하세요');
         return;
     }
 
@@ -389,8 +410,12 @@ function assignLayer(layerNum) {
 
     localStorage.setItem('deliveries', JSON.stringify(deliveries));
 
-    const layerName = layerNum === 0 ? '해제' : `레이어 ${layerNum}`;
-    alert(`${selectedIds.size}개 항목이 ${layerName}에 저장되었습니다`);
+    const msg = layerNum === 0 ? '지금갈곳에서 해제되었습니다.' : '지금갈곳으로 저장되었습니다.';
+    if (typeof showToast === 'function') {
+        showToast(msg);
+    } else {
+        alert(msg);
+    }
 
     selectedIds.clear();
     renderList();

@@ -4,8 +4,12 @@
     "description": "배송지도 - OCR 주소 인식 및 최적 경로 앱",
     "main": "index.html",
     "scripts": {
-        "build": "echo 'No build needed'",
-        "android": "npx cap open android"
+        "build": "./build.sh",
+        "clean": "./cleanup-build.sh",
+        "setup": "./setup-structure.sh",
+        "move": "./move-files.sh",
+        "android": "npx cap sync android && npx cap open android",
+        "sync": "npx cap sync"
     },
     "keywords": [
         "delivery",

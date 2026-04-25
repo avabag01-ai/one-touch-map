@@ -8,6 +8,8 @@ let settings = {
     dongs: ['전국코드', '중화동\n서울특별시\n중랑구', '묵동', '망우동', '신내동', '', '', '', '', ''],
     roads: ['ex : 안길', '번길', '가길', '나길', '다길'],
     googleMapsKey: '',
+    geminiKey: 'AIzaSyCc-BG2joboORfy1EN9SXN3g7KCA5pFVaw',
+    aiModel: 'gemini-2.0-flash',
     mapLine: 'notuse',
     arrivalSound: 'notuse',
     keyboardSound: 'notuse'
@@ -68,6 +70,12 @@ function loadSettings() {
     // Google Maps API 키
     document.getElementById('googleMapsKey').value = settings.googleMapsKey || '';
 
+    // Gemini API 키
+    document.getElementById('geminiKey').value = settings.geminiKey || 'AIzaSyCc-BG2joboORfy1EN9SXN3g7KCA5pFVaw';
+
+    // AI 모델 선택
+    document.getElementById('aiModel').value = settings.aiModel || 'gemini-2.0-flash';
+
     // 라디오 버튼
     document.querySelector(`input[name="mapLine"][value="${settings.mapLine}"]`).checked = true;
     document.querySelector(`input[name="arrivalSound"][value="${settings.arrivalSound}"]`).checked = true;
@@ -97,6 +105,12 @@ function saveSettings() {
 
     // Google Maps API 키
     settings.googleMapsKey = document.getElementById('googleMapsKey').value.trim();
+
+    // Gemini API 키
+    settings.geminiKey = document.getElementById('geminiKey').value.trim();
+
+    // AI 모델 선택
+    settings.aiModel = document.getElementById('aiModel').value;
 
     // 라디오 버튼
     settings.mapLine = document.querySelector('input[name="mapLine"]:checked').value;

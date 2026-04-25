@@ -508,8 +508,9 @@
                     // 도로명주소는 전국 고유하므로 가장 정확함
                     let address;
                     if (roadAddr) {
-                        // 도로명주소가 있으면 그대로 사용 (전국 고유)
-                        address = roadAddr;
+                        // 도로명주소에 시/도가 없으면 regionPrefix로 보강 (동명이도 지방 매칭 방지)
+                        const hasSido = /(특별시|광역시|특별자치시|특별자치도|도\s)/.test(roadAddr);
+                        address = (!hasSido && regionPrefix) ? regionPrefix + roadAddr : roadAddr;
                     } else if (fullAddr && /[로길]\s*\d/.test(fullAddr)) {
                         // fullAddress에 도로명 패턴이 있으면 우선 사용
                         address = fullAddr;

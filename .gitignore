@@ -1,0 +1,63 @@
+# ============================================
+# One-Touch Map - .gitignore
+# ============================================
+
+# APK/AAB 파일 (절대 Git에 올리지 말 것!)
+*.apk
+*.aab
+
+# Android 빌드 산출물
+android/app/build/
+android/.gradle/
+android/local.properties
+android/.cxx/
+android/captures/
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+
+# OS 파일
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+*.iml
+.project
+.classpath
+.settings/
+
+# 로그 파일
+*.log
+*.tmp
+
+# 빌드 산출물 (자동 생성됨)
+www/
+android/app/src/main/assets/public/
+
+# 임시 파일
+*.bak
+*.orig
+*.rej
+
+# 환경 변수
+.env
+.env.local
+
+# 테스트 커버리지
+coverage/
+.nyc_output/
+
+# 디버그 파일
+debug.log
+
+# Claude Code & 사용자 임시
+.claude/
+downloads/
