@@ -1,0 +1,89 @@
+name: Build iOS IPA (unsigned)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prepare web assets (src -> www)
+        run: |
+          rm -rf www
+          mkdir -p www
+          cp -r src/js/* www/ 2>/dev/null || true
+          cp -r src/css/* www/ 2>/dev/null || true
+          cp -r src/html/* www/ 2>/dev/null || true
+          cp manifest.json www/ 2>/dev/null || true
+          cp service-worker.js www/ 2>/dev/null || true
+          cp icon-*.png www/ 2>/dev/null || true
+          ls -la www
+
+      - name: Sync Capacitor (iOS)
+        run: npx cap sync ios
+
+      - name: Install CocoaPods
+        run: |
+          cd ios/App
+          pod install --repo-update
+
+      - name: Build unsigned archive
+        run: |
+          cd ios/App
+          xcodebuild \
+            -workspace App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath $PWD/build/App.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_ENTITLEMENTS="" \
+            archive
+
+      - name: Package unsigned IPA
+        run: |
+          cd ios/App/build
+          mkdir -p Payload
+          cp -r App.xcarchive/Products/Applications/App.app Payload/
+          zip -qry App-unsigned.ipa Payload
+          ls -la App-unsigned.ipa
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-unsigned-ipa
+          path: ios/App/build/App-unsigned.ipa
+
+      - name: Create Release
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ios-v${{ github.run_number }}
+          name: iOS unsigned IPA v${{ github.run_number }}
+          body: |
+            **Unsigned iOS IPA** — iPhone에 직접 설치 불가.
+
+            설치 방법:
+            1. 이 IPA 다운로드
+            2. Mac에서 [Sideloadly](https://sideloadly.io) 또는 AltStore로 무료 Apple ID 서명 후 설치
+            3. iPhone 설정 → 일반 → VPN 및 기기 관리 → 본인 Apple ID 신뢰
+
+            ※ 무료 Apple ID 서명은 7일마다 재서명 필요.
+          files: ios/App/build/App-unsigned.ipa
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
