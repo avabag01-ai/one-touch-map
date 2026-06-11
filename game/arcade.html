@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>동네 오락실</title>
+    <style>
+        /* 오락실 전용 — 기존 앱 CSS와 완전 분리 */
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        html, body { width: 100%; height: 100%; overflow: hidden; font-family: -apple-system, 'Apple SD Gothic Neo', sans-serif; }
+        body { background: #0f172a; color: #fff; }
+
+        /* ===== 메뉴 화면 ===== */
+        #menuScreen {
+            position: absolute; inset: 0; overflow-y: auto;
+            padding: calc(env(safe-area-inset-top, 0px) + 18px) 16px calc(env(safe-area-inset-bottom, 0px) + 20px);
+        }
+        .menuHead { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+        .menuHead a { color: #94a3b8; text-decoration: none; font-size: 22px; padding: 4px 8px 4px 0; }
+        .menuHead h1 { font-size: 24px; font-weight: 800; }
+        .menuSub { color: #94a3b8; font-size: 13px; margin: 2px 0 16px 30px; }
+
+        .survivalCard {
+            display: block; width: 100%; border: none; text-align: left;
+            background: #dc2626; color: #fff; border-radius: 16px;
+            padding: 16px 18px; margin-bottom: 18px;
+            box-shadow: 0 4px 14px rgba(220, 38, 38, 0.4);
+        }
+        .survivalCard:active { transform: scale(0.98); }
+        .survivalCard .big { font-size: 20px; font-weight: 800; }
+        .survivalCard .small { font-size: 13px; opacity: 0.9; margin-top: 4px; }
+
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .gameCard {
+            border: none; text-align: left; color: #fff;
+            background: #1e293b; border-radius: 14px; padding: 14px;
+            display: flex; flex-direction: column; gap: 6px;
+        }
+        .gameCard:active { background: #334155; transform: scale(0.97); }
+        .gameCard .icon { font-size: 30px; line-height: 1; }
+        .gameCard .name { font-size: 15px; font-weight: 700; }
+        .gameCard .desc { font-size: 11.5px; color: #94a3b8; line-height: 1.4; }
+
+        .defenseCard {
+            display: flex; align-items: center; gap: 12px; text-decoration: none; color: #fff;
+            background: #1e3a8a; border-radius: 14px; padding: 14px; margin-top: 12px;
+        }
+        .defenseCard:active { transform: scale(0.98); }
+        .defenseCard .icon { font-size: 28px; }
+        .defenseCard .name { font-size: 15px; font-weight: 700; }
+        .defenseCard .desc { font-size: 11.5px; color: #93c5fd; margin-top: 2px; }
+
+        /* ===== 게임 화면 ===== */
+        #gameScreen { position: absolute; inset: 0; display: none; }
+        #gameScreen.on { display: block; }
+        #gc { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
+
+        #hud {
+            position: absolute; top: 0; left: 0; right: 0; z-index: 10;
+            display: flex; align-items: center; gap: 10px;
+            padding: calc(env(safe-area-inset-top, 0px) + 8px) 14px 8px;
+            font-size: 15px; font-weight: 700; pointer-events: none;
+        }
+        #hud button { pointer-events: auto; background: rgba(255,255,255,0.12); color: #fff; border: none; border-radius: 8px; padding: 6px 12px; font-size: 14px; font-weight: 700; }
+        #hud .spacer { flex: 1; }
+        #roundLabel { font-size: 14px; color: #cbd5e1; }
+
+        /* 라운드 시작/결과 오버레이 */
+        .overlay {
+            position: absolute; inset: 0; z-index: 20;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+            background: rgba(15, 23, 42, 0.88); text-align: center; padding: 24px;
+        }
+        .overlay.hidden { display: none; }
+        .overlay .kicker { color: #f87171; font-size: 14px; font-weight: 800; letter-spacing: 2px; }
+        .overlay h2 { font-size: 26px; font-weight: 800; }
+        .overlay p { color: #cbd5e1; font-size: 15px; line-height: 1.6; max-width: 300px; }
+        .overlay .btnRow { display: flex; gap: 10px; margin-top: 10px; }
+        .overlay button { background: #2196F3; color: #fff; border: none; padding: 13px 28px; border-radius: 26px; font-size: 16px; font-weight: 800; }
+        .overlay button.gray { background: rgba(255,255,255,0.18); }
+        .overlay .emoji { font-size: 46px; }
+    </style>
+</head>
+
+<body>
+    <div id="menuScreen">
+        <div class="menuHead">
+            <a href="../index.html">←</a>
+            <h1>동네 오락실</h1>
+        </div>
+        <div class="menuSub">옛날 동네 놀이 6종 — 다 깨면 동네 챔피언</div>
+
+        <button class="survivalCard" data-mode="survival">
+            <div class="big">🔥 서바이벌 모드</div>
+            <div class="small">목숨 3개로 6라운드 연속 도전</div>
+        </button>
+
+        <div class="grid">
+            <button class="gameCard" data-game="mugunghwa">
+                <span class="icon">🌺</span>
+                <span class="name">무궁화 꽃이<br>피었습니다</span>
+                <span class="desc">누르면 달리고 떼면 멈춤. 술래가 돌아보면 얼음!</span>
+            </button>
+            <button class="gameCard" data-game="dalgona">
+                <span class="icon">🍪</span>
+                <span class="name">달고나</span>
+                <span class="desc">금 안 가게 모양 따라 긋기. 세 번 금 가면 와장창</span>
+            </button>
+            <button class="gameCard" data-game="ddakji">
+                <span class="icon">🟦</span>
+                <span class="name">딱지치기</span>
+                <span class="desc">스와이프로 내리쳐서 상대 딱지 뒤집기. 5판 2승</span>
+            </button>
+            <button class="gameCard" data-game="jegi">
+                <span class="icon">🪶</span>
+                <span class="name">제기차기</span>
+                <span class="desc">떨어질 때 탭! 10개 차면 성공</span>
+            </button>
+            <button class="gameCard" data-game="bridge">
+                <span class="icon">🌉</span>
+                <span class="name">징검다리</span>
+                <span class="desc">3초 동안 외우고 안전한 칸만 밟아 7칸 건너기</span>
+            </button>
+            <button class="gameCard" data-game="tug">
+                <span class="icon">🪢</span>
+                <span class="name">줄다리기</span>
+                <span class="desc">왼쪽 오른쪽 번갈아 연타로 끌어당기기</span>
+            </button>
+        </div>
+
+        <a class="defenseCard" href="defense.html">
+            <span class="icon">🗺️</span>
+            <span>
+                <div class="name">원터치 디펜스</div>
+                <div class="desc">우리 동네 지도에서 슬라임 군단 막기</div>
+            </span>
+        </a>
+    </div>
+
+    <div id="gameScreen">
+        <canvas id="gc"></canvas>
+        <div id="hud">
+            <button id="quitBtn">←</button>
+            <span id="livesLabel"></span>
+            <span class="spacer"></span>
+            <span id="roundLabel"></span>
+        </div>
+        <div id="introOverlay" class="overlay hidden">
+            <div class="kicker" id="introKicker"></div>
+            <h2 id="introTitle"></h2>
+            <p id="introRule"></p>
+            <div class="btnRow"><button id="introStart">시작</button></div>
+        </div>
+        <div id="resultOverlay" class="overlay hidden">
+            <div class="emoji" id="resultEmoji"></div>
+            <h2 id="resultTitle"></h2>
+            <p id="resultDetail"></p>
+            <div class="btnRow">
+                <button id="resultNext"></button>
+                <button id="resultMenu" class="gray">오락실로</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="arcade-game.js"></script>
+</body>
+
+</html>
