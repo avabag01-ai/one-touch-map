@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>원터치 디펜스</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        /* 게임 전용 스타일 — 기존 앱 CSS와 완전 분리 */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; overflow: hidden; font-family: -apple-system, 'Apple SD Gothic Neo', sans-serif; }
+
+        #map { position: absolute; inset: 0; z-index: 1; }
+
+        /* 게임 객체 렌더링 캔버스 (지도 위, 터치는 통과)
+           canvas는 replaced element라 inset:0만으론 안 늘어남 — width/height 명시 필수 */
+        #gameCanvas {
+            position: absolute; inset: 0; z-index: 500;
+            width: 100%; height: 100%;
+            pointer-events: none;
+        }
+
+        /* 상단 HUD */
+        #hud {
+            position: absolute; top: 0; left: 0; right: 0; z-index: 1000;
+            display: flex; align-items: center; gap: 12px;
+            padding: calc(env(safe-area-inset-top, 0px) + 8px) 12px 8px;
+            background: linear-gradient(rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0.6));
+            color: #fff; font-size: 15px; font-weight: 600;
+            user-select: none; -webkit-user-select: none;
+        }
+        #hud .stat { display: flex; align-items: center; gap: 4px; }
+        #hud .spacer { flex: 1; }
+        #hud button {
+            background: rgba(255, 255, 255, 0.15); color: #fff; border: none;
+            border-radius: 8px; padding: 6px 10px; font-size: 14px; font-weight: 700;
+        }
+        #hud button:active { background: rgba(255, 255, 255, 0.3); }
+        #backBtn { text-decoration: none; color: #fff; font-size: 18px; padding: 2px 6px; }
+
+        /* 하단 안내 + 액션 버튼 */
+        #bottomBar {
+            position: absolute; left: 0; right: 0; z-index: 1000;
+            bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+            display: flex; flex-direction: column; align-items: center; gap: 10px;
+            pointer-events: none;
+        }
+        #message {
+            background: rgba(15, 23, 42, 0.8); color: #fff;
+            padding: 8px 16px; border-radius: 20px; font-size: 14px;
+            max-width: 86%; text-align: center;
+        }
+        #actionBtn {
+            pointer-events: auto;
+            background: #2196F3; color: #fff; border: none;
+            padding: 14px 36px; border-radius: 28px;
+            font-size: 18px; font-weight: 800;
+            box-shadow: 0 4px 14px rgba(33, 150, 243, 0.5);
+        }
+        #actionBtn:active { transform: scale(0.96); }
+        #actionBtn.hidden, #message.hidden { display: none; }
+
+        /* 결과 오버레이 */
+        #resultOverlay {
+            position: absolute; inset: 0; z-index: 2000;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+            background: rgba(15, 23, 42, 0.75);
+            color: #fff; text-align: center;
+        }
+        #resultOverlay.hidden { display: none; }
+        #resultTitle { font-size: 42px; font-weight: 900; }
+        #resultDetail { font-size: 16px; opacity: 0.9; }
+        #resultOverlay .btnRow { display: flex; gap: 12px; margin-top: 8px; }
+        #resultOverlay button {
+            background: #2196F3; color: #fff; border: none;
+            padding: 13px 26px; border-radius: 26px; font-size: 16px; font-weight: 700;
+        }
+        #resultOverlay button.secondary { background: rgba(255, 255, 255, 0.2); }
+
+        /* 기지 피격 플래시 */
+        #damageFlash {
+            position: absolute; inset: 0; z-index: 900; pointer-events: none;
+            box-shadow: inset 0 0 60px 20px rgba(244, 67, 54, 0.7);
+            opacity: 0; transition: opacity 0.4s;
+        }
+        #damageFlash.on { opacity: 1; transition: opacity 0s; }
+
+        /* 골드 부족 등 토스트 */
+        #toast {
+            position: absolute; top: 30%; left: 50%; transform: translateX(-50%);
+            z-index: 1500; pointer-events: none;
+            background: rgba(244, 67, 54, 0.9); color: #fff;
+            padding: 8px 18px; border-radius: 18px; font-size: 14px; font-weight: 700;
+            opacity: 0; transition: opacity 0.3s;
+        }
+        #toast.on { opacity: 1; }
+    </style>
+</head>
+
+<body>
+    <div id="map"></div>
+    <canvas id="gameCanvas"></canvas>
+    <div id="damageFlash"></div>
+
+    <div id="hud">
+        <a id="backBtn" href="../index.html">←</a>
+        <span class="stat">❤️ <span id="lifeVal">10</span></span>
+        <span class="stat">💰 <span id="goldVal">0</span></span>
+        <span class="stat">🌊 <span id="waveVal">-</span></span>
+        <span class="spacer"></span>
+        <button id="speedBtn">▶︎ x1</button>
+        <button id="pauseBtn">⏸</button>
+    </div>
+
+    <div id="toast"></div>
+
+    <div id="bottomBar">
+        <div id="message">기지를 세울 곳을 지도에서 탭하세요</div>
+        <button id="actionBtn" class="hidden">웨이브 시작</button>
+    </div>
+
+    <div id="resultOverlay" class="hidden">
+        <div id="resultTitle"></div>
+        <div id="resultDetail"></div>
+        <div class="btnRow">
+            <button id="retryBtn">같은 자리에서 다시</button>
+            <button id="moveBtn" class="secondary">기지 옮기기</button>
+        </div>
+    </div>
+
+    <script src="defense-game.js"></script>
+</body>
+
+</html>
