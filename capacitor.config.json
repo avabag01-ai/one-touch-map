@@ -1,6 +1,6 @@
 {
   "appId": "com.avabag01.onetouchmap",
-  "appName": "원터치 에어",
+  "appName": "원터치맵",
   "webDir": "www",
   "server": {
     "androidScheme": "https",
@@ -15,5 +15,8 @@
   "android": {
     "allowMixedContent": true,
     "webContentsDebuggingEnabled": false
+  },
+  "ios": {
+    "contentInset": "always"
   }
 }
