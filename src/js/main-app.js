@@ -217,7 +217,95 @@ function extractDongName(dongString) {
     return dongString.split('\n')[0];
 }
 
-// 빠른 선택 (도로명) 업데이트
+// 동별 도로명 캐시 (localStorage 영속 — 같은 동 재선택 시 API 재호출 안 함)
+const ROAD_CACHE_KEY = 'onetouchmap_roadcache_v1';
+let roadCache = {};
+try { roadCache = JSON.parse(localStorage.getItem(ROAD_CACHE_KEY) || '{}'); } catch (e) { roadCache = {}; }
+
+function saveRoadCache() {
+    try { localStorage.setItem(ROAD_CACHE_KEY, JSON.stringify(roadCache)); } catch (e) { /* 용량 초과 등 무시 */ }
+}
+
+// 선택된 동의 시/도·구/군 컨텍스트 확보 (VWorld 조회 스코프용)
+function resolveDongRegion(selected) {
+    if (!selected) return null;
+    const parts = selected.split('\n').map(s => s.trim()).filter(Boolean);
+    const dong = parts[0];
+    if (!dong || dong === '전국코드') return null;
+    // selectedDong에 지역정보가 실려 있으면(예: '망우동\n서울특별시\n중랑구') 그대로 사용
+    if (parts.length >= 3) return { sido: parts[1], gugun: parts[2], dong };
+    // 없으면 전국 DB에서 동 이름으로 역검색
+    if (typeof findRegionByDong === 'function') {
+        const r = findRegionByDong(dong);
+        if (r) return r;
+    }
+    return { sido: '', gugun: '', dong };
+}
+
+// VWorld로 해당 동의 도로명 목록을 긁어와 '대표 도로'만 빈도순으로 반환 (JSONP 페이징)
+// 숫자 가지길(예: 망우로73길, 용마산로96길)은 제외 → 큰 도로 + 송림길 같은 대표 길만 남김
+// ⚠ VWorld는 결과를 도로 코드순 뭉텅이로 주므로(송림길 등이 뒤쪽 페이지에 몰림) 끝까지 페이징해야 완전함
+let _roadCbSeq = 0;
+function fetchDongRoads(region, onDone) {
+    const query = [region.sido, region.gugun, region.dong].filter(Boolean).join(' ');
+    const apiKey = (window.CONFIG && CONFIG.VWORLD_API_KEY) || 'EEB68327-5D04-3BE3-9072-D3ECFCCC26A2';
+    const MAX_PAGES = 12;                            // 폭주 방지 상한 (한 동당 최대 12,000건)
+    const branchRe = /[0-9]+(가|나|다|라|마)?길$/;    // 숫자 가지길 판별
+    const roadRe = /(\S+[로길])\s/;                  // 주소 문자열에서 도로명 토큰 추출
+    const counter = {};
+
+    const aggregate = (data) => {
+        const items = (data && data.response && data.response.result && data.response.result.items) || [];
+        items.forEach(it => {
+            const road = it.address && it.address.road;
+            // 그 동에 속한 주소만 집계 (다른 동 도로 배제)
+            if (!road || road.indexOf(region.dong) === -1) return;
+            const m = road.match(roadRe);
+            if (m) counter[m[1]] = (counter[m[1]] || 0) + 1;
+        });
+    };
+    const finish = () => {
+        const roads = Object.keys(counter)
+            .filter(n => !branchRe.test(n))
+            .sort((a, b) => counter[b] - counter[a]);
+        onDone(roads);
+    };
+    const loadPage = (page, onPageDone) => {
+        const cb = 'roadListCb_' + (++_roadCbSeq);
+        const script = document.createElement('script');
+        window[cb] = function (data) {
+            let total = 0;
+            try {
+                aggregate(data);
+                total = parseInt(data && data.response && data.response.record && data.response.record.total, 10) || 0;
+            } catch (e) { /* 파싱 실패 무시 */ }
+            delete window[cb];
+            if (script.parentNode) script.parentNode.removeChild(script);
+            onPageDone(total);
+        };
+        script.onerror = function () {
+            delete window[cb];
+            if (script.parentNode) script.parentNode.removeChild(script);
+            onPageDone(0);
+        };
+        script.src = `https://api.vworld.kr/req/search?service=search&request=search&version=2.0&crs=epsg:4326` +
+            `&query=${encodeURIComponent(query)}&type=ADDRESS&category=ROAD&format=json&size=1000&page=${page}` +
+            `&key=${apiKey}&callback=${cb}`;
+        document.body.appendChild(script);
+    };
+
+    // 1페이지 먼저 조회해 전체 건수 파악 → 나머지 페이지 병렬 요청
+    loadPage(1, (total) => {
+        const pages = Math.min(MAX_PAGES, Math.max(1, Math.ceil(total / 1000)));
+        if (pages <= 1) { finish(); return; }
+        let pending = pages - 1;
+        for (let p = 2; p <= pages; p++) {
+            loadPage(p, () => { if (--pending === 0) finish(); });
+        }
+    });
+}
+
+// 빠른 선택 (도로명) 업데이트 — 선택한 동의 실제 도로명을 VWorld에서 동적 로드
 function updateQuickSelect() {
     const container = document.getElementById('quickSelect');
     container.innerHTML = '';
@@ -230,64 +318,57 @@ function updateQuickSelect() {
         dongBtn.className = 'quick-btn';
         dongBtn.textContent = dongName;
         dongBtn.addEventListener('click', () => {
-            addressBefore = dongName;
+            addressBefore = dongName + ' ';
             currentField = 'before';
+            updateFieldFocus();
             updateDisplay();
         });
         container.appendChild(dongBtn);
     }
 
-    // 도로명 버튼들
-    const roadsByDong = {
-        '전국코드': [],
-        '중화동': ['중랑역로', '중랑천로', '봉화산로', '망우로'],
-        '묵동': ['공릉로', '동일로', '봉화산로', '숙선옹주로', '신내로', '중랑역로', '중랑천로'],
-        '망우동': ['용마산로', '망우로', '상봉로', '동일로', '중랑천로', '용마공원로'],
-        '신내동': ['신내로', '봉화산로', '용마산로', '상봉로', '중랑천로', '동일로'],
-        '상봉동': ['망우로', '상봉로', '동일로', '용마산로'],
-        '면목동': ['동일로', '용마산로', '면목로', '겸재로', '사가정로']
+    const region = resolveDongRegion(selectedDong);
+    if (!region) return;   // 전국코드 등 특정 동이 아니면 도로명 버튼 없음
+
+    const cacheKey = [region.sido, region.gugun, region.dong].filter(Boolean).join(' ');
+
+    // 도로명 클릭 → '동 도로명 ' 형태로 채워 검색 스코프를 그 동에 고정
+    const renderRoads = (roads) => {
+        roads.forEach(road => {
+            const btn = document.createElement('button');
+            btn.className = 'quick-btn';
+            btn.textContent = road;
+            btn.addEventListener('click', () => {
+                addressBefore = region.dong + ' ' + road + ' ';
+                currentField = 'before';
+                updateFieldFocus();
+                updateDisplay();
+            });
+            container.appendChild(btn);
+        });
     };
 
-    let roads = roadsByDong[dongName] || [];
-
-    // 등록된 동인데 도로명이 없는 경우, 동적으로 기본 도로명 생성
-    if (roads.length === 0 && dongName && dongName !== '전국코드') {
-        roads = generateDefaultRoads(dongName);
+    // 캐시 있으면 즉시 렌더
+    if (roadCache[cacheKey]) {
+        renderRoads(roadCache[cacheKey]);
+        return;
     }
 
-    roads.forEach(road => {
-        const btn = document.createElement('button');
-        btn.className = 'quick-btn';
-        btn.textContent = road;
-        btn.addEventListener('click', () => {
-            // 도로명 클릭 시 주소전(위 필드)에 입력
-            addressBefore = road;
-            currentField = 'before';
-            updateFieldFocus();
-            updateDisplay();
-        });
-        container.appendChild(btn);
+    // 없으면 로딩 표시 후 VWorld 조회
+    const loading = document.createElement('span');
+    loading.className = 'quick-loading';
+    loading.textContent = '도로명 불러오는 중…';
+    loading.style.cssText = 'font-size:13px;color:#999;padding:6px;';
+    container.appendChild(loading);
+
+    const reqDong = selectedDong;  // 응답 도착 전 동이 바뀌면 무시하기 위한 스냅샷
+    fetchDongRoads(region, (roads) => {
+        roadCache[cacheKey] = roads;
+        saveRoadCache();
+        if (selectedDong === reqDong) {   // 그새 다른 동으로 안 바꿨을 때만 반영
+            if (loading.parentNode) loading.remove();
+            renderRoads(roads);
+        }
     });
-}
-
-// 동적으로 기본 도로명 생성하는 함수
-function generateDefaultRoads(dongName) {
-    // 동 이름에서 숫자를 제거한 부분 추출
-    const baseName = dongName.replace(/[0-9]/g, '').replace('동', '');
-
-    // 기본 도로명 패턴 생성
-    const defaultRoads = [
-        `${baseName}로`,
-        `${baseName}길`,
-        `${baseName}로1길`,
-        `${baseName}로2길`,
-        `${baseName}중앙로`,
-        `${baseName}서길`,
-        `${baseName}동길`,
-        `${baseName}남길`
-    ];
-
-    return defaultRoads;
 }
 
 // 길종류 빠른 선택 업데이트 (키패드 내부 동적 버튼)
@@ -341,26 +422,15 @@ function searchAddress() {
     let queryAddress = input;
     let searchCategory = isRoad ? 'ROAD' : 'PARCEL';
 
-    // 지번 검색일 때 동 이름 + 시/구 정보 붙이기 (엉뚱한 지역 매칭 방지)
-    const dongName = extractDongName(selectedDong);
-    if (!isRoad && dongName !== '전국코드' && !queryAddress.startsWith(dongName)) {
-        // 전국코드 모드에서 시/구 정보가 있으면 함께 포함
-        const dongParts = selectedDong.split('\n');
-        if (dongParts.length >= 3) {
-            // "시도 구군 동" 형식으로 완전한 주소 구성
-            queryAddress = `${dongParts[1]} ${dongParts[2]} ${dongName} ${queryAddress}`;
-        } else {
-            // 동 이름만 있는 경우 national-regions에서 시/구 자동 검색
-            if (typeof findRegionByDong === 'function') {
-                const region = findRegionByDong(dongName);
-                if (region) {
-                    queryAddress = `${region.sido} ${region.gugun} ${dongName} ${queryAddress}`;
-                } else {
-                    queryAddress = `${dongName} ${queryAddress}`;
-                }
-            } else {
-                queryAddress = `${dongName} ${queryAddress}`;
-            }
+    // 검색 지역 스코프 확보 — 도로명/지번 모두 적용 (엉뚱한 지역 매칭 방지)
+    // 도로명 검색도 시/구/동 접두어를 붙여야 "송림로" 같은 게 전국(예: 화성시)으로 안 튐
+    const searchRegion = resolveDongRegion(selectedDong);
+    if (searchRegion) {
+        // "시도 구군 동" 중 쿼리에 아직 없는 조각만 앞에 부여 (중복 방지)
+        const missing = [searchRegion.sido, searchRegion.gugun, searchRegion.dong]
+            .filter(p => p && queryAddress.indexOf(p) === -1);
+        if (missing.length) {
+            queryAddress = `${missing.join(' ')} ${queryAddress}`;
         }
     }
 
@@ -377,9 +447,25 @@ function searchAddress() {
             const items = data.response.result.items;
 
             if (items && items.length > 0) {
-                const item = items[0];
+                // 선택 지역으로 결과 스코프: 구/군 일치 우선 → 시/도 일치 → 그 외 거절
+                // (VWorld 도로명 검색이 지역 토큰을 무시하고 전국 매칭하므로 결과 필터가 필수)
+                let item;
+                if (searchRegion && searchRegion.sido) {
+                    const hay = (it) => {
+                        const a = it.address || {};
+                        return (a.road || '') + ' ' + (a.parcel || '');
+                    };
+                    item = (searchRegion.gugun &&
+                        items.find(it => hay(it).indexOf(searchRegion.sido) !== -1 && hay(it).indexOf(searchRegion.gugun) !== -1))
+                        || items.find(it => hay(it).indexOf(searchRegion.sido) !== -1)
+                        || null;   // 시/도 밖 결과뿐이면 거절 (엉뚱한 지역 방지)
+                } else {
+                    item = items[0];   // 전국코드 모드: 스코프 없음
+                }
 
-                if (isRoad) {
+                if (!item) {
+                    showToast(`⚠ ${searchRegion.gugun || searchRegion.sido}에서 못 찾음 (도로명 확인)`);
+                } else if (isRoad) {
                     // 도로명 입력 → 지번(구주소) 결과를 주소후에
                     if (item.address && item.address.parcel) {
                         addressAfter = item.address.parcel;
