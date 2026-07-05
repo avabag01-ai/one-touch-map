@@ -729,6 +729,36 @@ html[data-theme="rose"] body {
     text-align: center;
 }
 
+/* 사진 크롭 (드래그로 인식할 영역 선택) */
+.crop-stage {
+    position: relative;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    margin-bottom: 16px;
+    border-radius: 14px;
+    background: #111;
+    touch-action: none; /* 드래그 중 페이지 스크롤 방지 */
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+#cropCanvas {
+    display: block;
+    max-width: 100%;
+    touch-action: none;
+}
+
+.crop-selection-box {
+    position: absolute;
+    left: 0; top: 0;
+    border: 2px dashed #4CAF50;
+    background: rgba(76, 175, 80, 0.15);
+    pointer-events: none; /* 선택 상자 자체는 드래그 이벤트를 가로채지 않음 */
+}
+
 .scanned-list {
     flex: 1;
     overflow-y: auto;

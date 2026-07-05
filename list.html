@@ -78,6 +78,22 @@
     <!-- OCR 인식 (배송주소 화면) -->
     <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display: none;">
     <input type="file" id="fileInput" accept="image/*" style="display: none;">
+    <!-- 사진 크롭 (주소 있는 부분만 선택해서 인식률 개선) -->
+    <div id="cropModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <h3>📐 인식할 부분 선택</h3>
+            <p class="modal-desc">주소가 있는 부분만 손가락으로 드래그해 선택하세요.</p>
+            <div id="cropStage" class="crop-stage">
+                <canvas id="cropCanvas"></canvas>
+                <div id="cropSelectionBox" class="crop-selection-box" style="display:none;"></div>
+            </div>
+            <div class="modal-actions">
+                <button id="cropUseFullBtn" class="btn-cancel">전체 사용</button>
+                <button id="cropCancelBtn" class="btn-cancel">취소</button>
+                <button id="cropConfirmBtn" class="btn-confirm">이 부분 인식</button>
+            </div>
+        </div>
+    </div>
     <div id="ocrModal" class="modal-overlay" style="display: none;">
         <div class="modal-content">
             <h3>📝 스캔 결과 확인</h3>

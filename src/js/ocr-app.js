@@ -330,7 +330,7 @@ function setupScanFeature() {
         });
     }
 
-    // 파일 버튼 - 갤러리/파일에서 선택
+    // 파일 버튼 - 갤러리/파일에서 선택 → 바로 인식하지 않고 크롭 화면부터 (인식할 부분만 선택)
     if (fileBtn && fileInput) {
         fileBtn.addEventListener('click', () => {
             fileInput.click();
@@ -339,7 +339,7 @@ function setupScanFeature() {
         fileInput.addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;
-            await processOcrImage(file);
+            openCropUI(file);
             fileInput.value = '';
         });
     }
@@ -348,10 +348,19 @@ function setupScanFeature() {
         cameraInput.addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;
-            await processOcrImage(file);
+            openCropUI(file);
             cameraInput.value = '';
         });
     }
+
+    // 크롭 화면 버튼
+    const cropConfirmBtn = document.getElementById('cropConfirmBtn');
+    const cropCancelBtn = document.getElementById('cropCancelBtn');
+    const cropUseFullBtn = document.getElementById('cropUseFullBtn');
+    if (cropConfirmBtn) cropConfirmBtn.addEventListener('click', () => cropAndRecognize(false));
+    if (cropUseFullBtn) cropUseFullBtn.addEventListener('click', () => cropAndRecognize(true));
+    if (cropCancelBtn) cropCancelBtn.addEventListener('click', closeCropModal);
+    setupCropDrag();
 
     if (addManualBtn) addManualBtn.addEventListener('click', () => addScannedItem('묵동', ''));
     if (cancelScanBtn) cancelScanBtn.addEventListener('click', closeOcrModal);
@@ -564,58 +573,177 @@ function applyExifTransform(ctx, orientation, w, h) {
 }
 
 // === 이미지 전처리 (EXIF 방향 보정 + 리사이즈만, 색상/이진화는 Tesseract에 맡김) ===
-function preprocessImage(file, maxWidth) {
-    return new Promise((resolve, reject) => {
-        getExifInfo(file, (exif) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = function (e) {
-                const img = new Image();
-                img.src = e.target.result;
-                img.onload = function () {
-                    const natW = img.width, natH = img.height; // 이 WebView가 실제로 디코딩해 준 크기
+// 파일을 읽어 EXIF 방향까지 보정한 "원본 해상도" 캔버스를 콜백으로 반환.
+// preprocessImage(OCR용 리사이즈)와 크롭 UI(원본 화질로 영역 선택) 양쪽에서 공용으로 씀.
+function getOrientedCanvas(file, callback) {
+    getExifInfo(file, (exif) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = function (e) {
+            const img = new Image();
+            img.src = e.target.result;
+            img.onload = function () {
+                const natW = img.width, natH = img.height; // 이 WebView가 실제로 디코딩해 준 크기
 
-                    // WebView가 EXIF 회전을 이미 자동 반영했는지 "실측"으로 판단.
-                    // SOF(파일 원본 인코딩 크기)와 비교해 가로/세로가 뒤바뀌어 있으면
-                    // 브라우저가 이미 바로 세운 것 → 우리가 또 돌리면 이중회전으로 망가짐 → 스킵.
-                    // 비교 불가(SOF 파싱 실패 등)면 안전하게 무보정(orientation=1)으로 처리.
-                    let orientation = 1;
-                    if (exif.sofW && exif.sofH) {
-                        const rawAsIs = (natW === exif.sofW && natH === exif.sofH);
-                        const alreadyRotated = (exif.sofW !== exif.sofH && natW === exif.sofH && natH === exif.sofW);
-                        if (rawAsIs) orientation = exif.orientation;       // 브라우저가 원본 그대로 줌 → EXIF 태그대로 우리가 보정
-                        else if (alreadyRotated) orientation = 1;          // 브라우저가 이미 돌려줌 → 추가 보정 금지
-                        // 그 외(예상 밖 크기, 크롭 등)는 orientation=1 기본값 유지
-                    }
-                    const swapped = orientation >= 5 && orientation <= 8; // 90도 계열 회전이면 가로세로 교체
+                // WebView가 EXIF 회전을 이미 자동 반영했는지 "실측"으로 판단.
+                // SOF(파일 원본 인코딩 크기)와 비교해 가로/세로가 뒤바뀌어 있으면
+                // 브라우저가 이미 바로 세운 것 → 우리가 또 돌리면 이중회전으로 망가짐 → 스킵.
+                // 비교 불가(SOF 파싱 실패 등)면 안전하게 무보정(orientation=1)으로 처리.
+                let orientation = 1;
+                if (exif.sofW && exif.sofH) {
+                    const rawAsIs = (natW === exif.sofW && natH === exif.sofH);
+                    const alreadyRotated = (exif.sofW !== exif.sofH && natW === exif.sofH && natH === exif.sofW);
+                    if (rawAsIs) orientation = exif.orientation;       // 브라우저가 원본 그대로 줌 → EXIF 태그대로 우리가 보정
+                    else if (alreadyRotated) orientation = 1;          // 브라우저가 이미 돌려줌 → 추가 보정 금지
+                    // 그 외(예상 밖 크기, 크롭 등)는 orientation=1 기본값 유지
+                }
+                const swapped = orientation >= 5 && orientation <= 8; // 90도 계열 회전이면 가로세로 교체
 
-                    // 1단계: EXIF 방향 보정만 적용한 캔버스 (원본 해상도 유지)
-                    const oriCanvas = document.createElement('canvas');
-                    oriCanvas.width = swapped ? natH : natW;
-                    oriCanvas.height = swapped ? natW : natH;
-                    const oriCtx = oriCanvas.getContext('2d');
-                    oriCtx.save();
-                    // ⚠ 표준 공식은 회전 "전"(원본, natW/natH) 크기를 써야 함 — 캔버스의 회전 후(스왑된) 크기를 넣으면 좌표가 캔버스 밖으로 밀려남
-                    applyExifTransform(oriCtx, orientation, natW, natH);
-                    oriCtx.drawImage(img, 0, 0, natW, natH);
-                    oriCtx.restore();
+                const oriCanvas = document.createElement('canvas');
+                oriCanvas.width = swapped ? natH : natW;
+                oriCanvas.height = swapped ? natW : natH;
+                const oriCtx = oriCanvas.getContext('2d');
+                oriCtx.save();
+                // ⚠ 표준 공식은 회전 "전"(원본, natW/natH) 크기를 써야 함 — 캔버스의 회전 후(스왑된) 크기를 넣으면 좌표가 캔버스 밖으로 밀려남
+                applyExifTransform(oriCtx, orientation, natW, natH);
+                oriCtx.drawImage(img, 0, 0, natW, natH);
+                oriCtx.restore();
 
-                    // 2단계: 방향 보정된 이미지를 리사이즈만 하고 그대로 Tesseract에 전달
-                    // (그레이스케일+명암대비+Otsu 이진화를 직접 했었는데, 실제 사진으로 비교
-                    //  테스트해보니 수동 이진화가 오히려 인식률을 깎아먹었음 — Tesseract 자체
-                    //  내장 처리가 사진 특유의 불균일한 조명/그림자에 더 강함. 그래서 제거함)
-                    let w = oriCanvas.width, h = oriCanvas.height;
-                    const mw = maxWidth || 1600;
-                    if (w > mw) { h = h * (mw / w); w = mw; }
-
-                    const canvas = document.createElement('canvas');
-                    canvas.width = w; canvas.height = h;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(oriCanvas, 0, 0, w, h);
-
-                    canvas.toBlob(resolve, 'image/jpeg', 0.92);
-                };
+                callback(oriCanvas);
             };
+        };
+    });
+}
+
+function preprocessImage(file, maxWidth) {
+    return new Promise((resolve) => {
+        getOrientedCanvas(file, (oriCanvas) => {
+            // 방향 보정된 이미지를 리사이즈만 하고 그대로 Tesseract에 전달
+            // (그레이스케일+명암대비+Otsu 이진화를 직접 했었는데, 실제 사진으로 비교
+            //  테스트해보니 수동 이진화가 오히려 인식률을 깎아먹었음 — Tesseract 자체
+            //  내장 처리가 사진 특유의 불균일한 조명/그림자에 더 강함. 그래서 제거함)
+            let w = oriCanvas.width, h = oriCanvas.height;
+            const mw = maxWidth || 1600;
+            if (w > mw) { h = h * (mw / w); w = mw; }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = w; canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(oriCanvas, 0, 0, w, h);
+
+            canvas.toBlob(resolve, 'image/jpeg', 0.92);
         });
     });
+}
+
+// === 사진 크롭 (주소 있는 부분만 드래그로 선택해서 인식률/속도 개선) ===
+let cropState = null;
+
+function openCropUI(file) {
+    if (typeof showToast === 'function') showToast('사진 불러오는 중...');
+    getOrientedCanvas(file, (oriCanvas) => showCropModal(oriCanvas));
+}
+
+function showCropModal(oriCanvas) {
+    const modal = document.getElementById('cropModal');
+    const stage = document.getElementById('cropStage');
+    const canvas = document.getElementById('cropCanvas');
+    const box = document.getElementById('cropSelectionBox');
+    if (!modal || !stage || !canvas || !box) {
+        // 크롭 UI가 없는 화면이면(구버전 캐시 등) 크롭 없이 바로 인식
+        oriCanvas.toBlob((blob) => processOcrImage(blob), 'image/jpeg', 0.95);
+        return;
+    }
+
+    // 화면에 보여줄 축소본 크기 계산 (실제 인식은 원본 해상도 캔버스에서 잘라냄)
+    const maxDisplayW = Math.min(stage.clientWidth || 320, 520);
+    const scale = Math.min(1, maxDisplayW / oriCanvas.width);
+    const dispW = Math.max(1, Math.round(oriCanvas.width * scale));
+    const dispH = Math.max(1, Math.round(oriCanvas.height * scale));
+
+    canvas.width = dispW;
+    canvas.height = dispH;
+    canvas.getContext('2d').drawImage(oriCanvas, 0, 0, dispW, dispH);
+
+    box.style.display = 'none';
+    cropState = { oriCanvas, scale, dispW, dispH, rect: null, dragging: false, startX: 0, startY: 0 };
+
+    modal.style.display = 'flex';
+}
+
+function closeCropModal() {
+    const modal = document.getElementById('cropModal');
+    if (modal) modal.style.display = 'none';
+    cropState = null;
+}
+
+// 드래그로 선택한 화면좌표 사각형을, 원본 해상도 캔버스에서 그대로 잘라 Blob으로 반환
+function cropAndRecognize(useFullImage) {
+    if (!cropState) return;
+    const { oriCanvas, scale, rect } = cropState;
+    let sx = 0, sy = 0, sw = oriCanvas.width, sh = oriCanvas.height;
+
+    if (!useFullImage && rect && rect.w >= 10 && rect.h >= 10) {
+        sx = Math.max(0, Math.round(rect.left / scale));
+        sy = Math.max(0, Math.round(rect.top / scale));
+        sw = Math.min(oriCanvas.width - sx, Math.round(rect.w / scale));
+        sh = Math.min(oriCanvas.height - sy, Math.round(rect.h / scale));
+    }
+
+    const out = document.createElement('canvas');
+    out.width = sw; out.height = sh;
+    out.getContext('2d').drawImage(oriCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
+
+    closeCropModal();
+    out.toBlob((blob) => processOcrImage(blob), 'image/jpeg', 0.95);
+}
+
+// 크롭 스테이지 위 드래그(마우스/터치 공용 Pointer Events)로 선택 사각형 그리기
+function setupCropDrag() {
+    const stage = document.getElementById('cropStage');
+    const box = document.getElementById('cropSelectionBox');
+    if (!stage || !box) return;
+
+    const getPos = (e) => {
+        const r = stage.getBoundingClientRect();
+        return { x: e.clientX - r.left, y: e.clientY - r.top };
+    };
+    const clamp = (v, max) => Math.max(0, Math.min(v, max));
+
+    stage.addEventListener('pointerdown', (e) => {
+        if (!cropState) return;
+        const p = getPos(e);
+        cropState.dragging = true;
+        cropState.startX = clamp(p.x, cropState.dispW);
+        cropState.startY = clamp(p.y, cropState.dispH);
+        cropState.rect = null;
+        box.style.display = 'block';
+        box.style.left = cropState.startX + 'px';
+        box.style.top = cropState.startY + 'px';
+        box.style.width = '0px';
+        box.style.height = '0px';
+        e.preventDefault();
+    });
+
+    stage.addEventListener('pointermove', (e) => {
+        if (!cropState || !cropState.dragging) return;
+        const p = getPos(e);
+        const x = clamp(p.x, cropState.dispW);
+        const y = clamp(p.y, cropState.dispH);
+        const left = Math.min(x, cropState.startX);
+        const top = Math.min(y, cropState.startY);
+        const w = Math.abs(x - cropState.startX);
+        const h = Math.abs(y - cropState.startY);
+        box.style.left = left + 'px';
+        box.style.top = top + 'px';
+        box.style.width = w + 'px';
+        box.style.height = h + 'px';
+        cropState.rect = { left, top, w, h };
+        e.preventDefault();
+    });
+
+    const endDrag = () => { if (cropState) cropState.dragging = false; };
+    stage.addEventListener('pointerup', endDrag);
+    stage.addEventListener('pointercancel', endDrag);
+    stage.addEventListener('pointerleave', endDrag);
 }
