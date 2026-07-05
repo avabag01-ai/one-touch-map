@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <!-- PWA 설정 -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -27,10 +27,15 @@
             overflow: hidden;
         }
 
+        /* Leaflet 기본 +/- zoom 컨트롤 숨김 (핀치 줌만 사용) */
+        .leaflet-control-zoom {
+            display: none !important;
+        }
+
         /* 뒤로가기 버튼 (동그라미) */
         .back-btn {
             position: fixed;
-            top: 12px;
+            top: calc(env(safe-area-inset-top) + 12px);
             left: 12px;
             z-index: 1000;
             background: white;
@@ -54,7 +59,7 @@
         /* 레이어 토글 버튼 */
         .layer-toggle-btn {
             position: fixed;
-            top: 12px;
+            top: calc(env(safe-area-inset-top) + 12px);
             left: 64px;
             z-index: 1000;
             background: white;
@@ -79,7 +84,7 @@
         /* 레이어 필터 (접이식) */
         .layer-filter {
             position: fixed;
-            top: 64px;
+            top: calc(env(safe-area-inset-top) + 64px);
             left: 12px;
             background: white;
             border-radius: 12px;
@@ -240,8 +245,7 @@
 
     <!-- 상단 레벨 필터 제거됨 (요청에 따라 삭제) -->
 
-    <!-- 레이어 토글 버튼 (전체 / 지금갈곳 토글) -->
-    <button class="layer-toggle-btn" id="layerToggleBtn" style="left:64px; font-size:11px;">전체보기</button>
+    <!-- 전체보기 토글 버튼 + 레이어 필터 메뉴 제거됨 (요청) -->
 
     <!-- 지도 - 전체화면 -->
     <div id="map" style="position: absolute; top: 0; bottom: 0; width: 100%; height: 100vh;"></div>
@@ -321,23 +325,6 @@
             displayMarkers();
 
             // 레이어 토글 버튼 이벤트
-            document.getElementById('layerToggleBtn').addEventListener('click', () => {
-                const btn = document.getElementById('layerToggleBtn');
-                if (currentLayer === 'all') {
-                    currentLayer = 'now';
-                    btn.textContent = '지금갈곳';
-                    btn.style.background = '#FF5252';
-                    btn.style.color = 'white';
-                    btn.style.borderColor = '#D32F2F';
-                } else {
-                    currentLayer = 'all';
-                    btn.textContent = '전체보기';
-                    btn.style.background = 'white';
-                    btn.style.color = '#333';
-                    btn.style.borderColor = '#CCC';
-                }
-                displayMarkers();
-            });
 
             // 레벨 필터 전역 함수 설정
             window.setLevelFilter = (level) => {
@@ -369,10 +356,7 @@
                     window.GOOGLE_MAPS_API_KEY = apiKey;
 
                     if (!apiKey || apiKey.trim() === '') {
-                        const confirmMove = confirm('Google Maps API 키가 설정되지 않았습니다.\n설정 페이지로 이동하여 키를 입력하시겠습니까?');
-                        if (confirmMove) {
-                            window.location.href = 'settings.html';
-                        }
+                        alert('Google Maps API 키가 설정되어 있지 않습니다.');
                         return;
                     }
                 } catch (e) {
@@ -936,8 +920,6 @@
         document.addEventListener('DOMContentLoaded', () => {
             initMap();
             startGpsAlways(); // GPS 항상 켜기 (파란점 항상 표시)
-            document.getElementById('layerToggleBtn').addEventListener('click', () => document.getElementById('layerFilter').classList.toggle('open'));
-            map.on('click', () => document.getElementById('layerFilter').classList.remove('open'));
 
             // 내 위치로 즉시 이동 버튼 (빨간 핀)
             const myLocBtn = document.createElement('button');

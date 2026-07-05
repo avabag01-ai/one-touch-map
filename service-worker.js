@@ -1,5 +1,5 @@
-const CACHE_NAME = 'one-touch-map-v3';
-const DATA_CACHE_NAME = 'one-touch-map-data-v3';
+const CACHE_NAME = 'one-touch-map-v4';
+const DATA_CACHE_NAME = 'one-touch-map-data-v4';
 
 // 캐시할 파일 목록 (앱 실행에 필수)
 const FILES_TO_CACHE = [
@@ -7,7 +7,6 @@ const FILES_TO_CACHE = [
     './index.html',
     './list.html',
     './map.html',
-    './settings.html',
     './main-style.css',
     './list-style.css',
     './config.js',

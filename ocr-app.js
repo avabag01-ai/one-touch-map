@@ -461,6 +461,8 @@ async function confirmRegistration() {
     } else {
         if (typeof showToast === 'function') showToast('이미 등록된 주소들입니다.');
     }
+
+    if (typeof onDeliveriesUpdated === 'function') onDeliveriesUpdated();
 }
 
 

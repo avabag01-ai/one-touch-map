@@ -274,12 +274,6 @@ function setupEventListeners() {
     // 삭제 버튼
     document.getElementById('deleteBtn').addEventListener('click', deleteSelected);
 
-    // 긴급 변경 버튼
-    document.getElementById('urgentBtn').addEventListener('click', toggleUrgent);
-
-    // 이월 버튼
-    document.getElementById('carryoverBtn').addEventListener('click', carryoverSelected);
-
     // 날짜 선택 버튼
     document.getElementById('datePicker').addEventListener('change', (e) => {
         selectedDate = e.target.value;
@@ -300,20 +294,6 @@ function setupEventListeners() {
         assignNow(0);
     });
 
-    // 리스트 토글 버튼
-    document.getElementById('listToggleBtn').addEventListener('click', () => {
-        const btn = document.getElementById('listToggleBtn');
-        if (currentFilter === 'all') {
-            currentFilter = 'now';
-            btn.textContent = '지금갈곳';
-            btn.style.background = '#FF5252';
-        } else {
-            currentFilter = 'all';
-            btn.textContent = '전체보기';
-            btn.style.background = '#673AB7';
-        }
-        renderList();
-    });
 }
 
 // 지도에서 보기
