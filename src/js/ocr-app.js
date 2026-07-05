@@ -563,7 +563,7 @@ function applyExifTransform(ctx, orientation, w, h) {
     }
 }
 
-// === 이미지 전처리 (방향 보정 + 흑백 + 명암대비 + 이진화 - 속도 최적화) ===
+// === 이미지 전처리 (EXIF 방향 보정 + 리사이즈만, 색상/이진화는 Tesseract에 맡김) ===
 function preprocessImage(file, maxWidth) {
     return new Promise((resolve, reject) => {
         getExifInfo(file, (exif) => {
