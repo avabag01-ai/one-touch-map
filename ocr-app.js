@@ -655,15 +655,22 @@ function showCropModal(oriCanvas) {
         return;
     }
 
-    // 화면에 보여줄 축소본 크기 계산 (실제 인식은 원본 해상도 캔버스에서 잘라냄)
-    const maxDisplayW = Math.min(stage.clientWidth || 320, 520);
+    // 화면에 보여줄 크기 계산 (CSS 픽셀 기준 — 실제 인식은 원본 해상도 캔버스에서 잘라내므로
+    // 여기서는 "사용자가 정확히 보고 선택할 수 있는지"만 신경 쓰면 됨)
+    const maxDisplayW = Math.min(stage.clientWidth || 320, 900);
     const scale = Math.min(1, maxDisplayW / oriCanvas.width);
-    const dispW = Math.max(1, Math.round(oriCanvas.width * scale));
+    const dispW = Math.max(1, Math.round(oriCanvas.width * scale));   // CSS 표시 크기(드래그 좌표 기준)
     const dispH = Math.max(1, Math.round(oriCanvas.height * scale));
 
-    canvas.width = dispW;
-    canvas.height = dispH;
-    canvas.getContext('2d').drawImage(oriCanvas, 0, 0, dispW, dispH);
+    // ⚠ 레티나 화면 대응: canvas.width/height를 CSS 크기 그대로 두면 3배 확대되는 화면(iPhone)에서
+    // 미리보기가 흐릿해져 사용자가 주소 글자를 못 알아보고 잘못 드래그하게 됨.
+    // 백킹 해상도는 devicePixelRatio만큼 올리고, 화면에 차지하는 CSS 크기(dispW/H)는 그대로 유지.
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(dispW * dpr);
+    canvas.height = Math.round(dispH * dpr);
+    canvas.style.width = dispW + 'px';
+    canvas.style.height = dispH + 'px';
+    canvas.getContext('2d').drawImage(oriCanvas, 0, 0, canvas.width, canvas.height);
 
     box.style.display = 'none';
     cropState = { oriCanvas, scale, dispW, dispH, rect: null, dragging: false, startX: 0, startY: 0 };
