@@ -181,6 +181,28 @@ function parseDeliverySheet(text, config) {
                 return;
             }
         }
+
+        // 패턴3(폴백): 동 글자만 인식 실패하고 지번 숫자는 남은 경우
+        // (연번 + 지번형태만 있고 동약자가 없음) — 동을 비워서라도 등록, 표에서 사용자가 채우면 됨
+        const bareMatch = line.match(/^(\d{1,2})\s+(\d{2,3})[-.](\d{1,3})\b/);
+        if (bareMatch) {
+            // "010" 등 전화번호 앞자리와 겹치는 오탐 방지
+            const looksLikePhonePrefix = /^01[016789]$/.test(bareMatch[2]);
+            if (!looksLikePhonePrefix) {
+                const jibun = `${bareMatch[2]}-${bareMatch[3]}`;
+                const key = `__unknown__${jibun}`;
+                if (!found.has(key)) {
+                    found.add(key);
+                    detectedItems.push({
+                        dong: '',
+                        jibun: jibun,
+                        fullAddress: jibun,
+                        phone: phone,
+                        tonnage: tonnage
+                    });
+                }
+            }
+        }
     });
 
     // 기존 풀네임 방식도 폴백으로 시도
@@ -364,12 +386,16 @@ function renderScannedList() {
 
     scannedItems.forEach(item => {
         const div = document.createElement('div');
-        div.className = 'scan-row';
+        div.className = item.dong ? 'scan-row' : 'scan-row scan-row-unsure';
         div.dataset.id = item.id;
 
         let options = availableDongs.map(d =>
             `<option value="${d}" ${item.dong === d ? 'selected' : ''}>${d}</option>`
         ).join('');
+        // 동 인식 실패(빈값) → 눈에 띄는 안내 옵션을 맨 앞에 추가해 사용자가 골라야 함을 표시
+        if (!item.dong) {
+            options = `<option value="" selected>동 선택⚠</option>` + options;
+        }
 
         div.innerHTML = `
             <input type="checkbox" class="scan-check" ${item.checked !== false ? 'checked' : ''}>
@@ -477,26 +503,114 @@ async function confirmRegistration() {
 }
 
 
-// === 이미지 전처리 (흑백 + 명암대비 + 이진화 - 속도 최적화) ===
+// EXIF 방향 태그 + SOF(원본 인코딩) 픽셀크기 읽기
+// 세로로 찍은 사진이 가로 픽셀+회전 플래그로 저장되는 경우 대응.
+// ⚠ WebView/브라우저에 따라 EXIF 회전을 이미 자동 반영해서 img.width/height를 주기도 하고
+//   아닐 수도 있어(기종마다 다름, 신뢰 불가) — 그래서 여기선 태그만 읽고, 실제 적용 여부는
+//   preprocessImage에서 "브라우저가 준 크기 vs SOF 원본 크기"를 실측 비교해서 판단한다.
+function getExifInfo(file, callback) {
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        const info = { orientation: 1, sofW: null, sofH: null };
+        try {
+            const view = new DataView(e.target.result);
+            if (view.getUint16(0, false) === 0xFFD8) {
+                const length = view.byteLength;
+                let offset = 2;
+                while (offset < length - 4) {
+                    const marker = view.getUint16(offset, false);
+                    if ((marker & 0xFF00) !== 0xFF00) break;
+                    if (marker === 0xFFD9 || marker === 0xFFDA) break; // EOI / Start of Scan
+                    const segLen = view.getUint16(offset + 2, false);
+                    if (marker === 0xFFE1 && view.getUint32(offset + 4, false) === 0x45786966) {
+                        const tiffOffset = offset + 10;
+                        const little = view.getUint16(tiffOffset, false) === 0x4949;
+                        const firstIFD = tiffOffset + view.getUint32(tiffOffset + 4, little);
+                        const tags = view.getUint16(firstIFD, little);
+                        for (let i = 0; i < tags; i++) {
+                            const entry = firstIFD + 2 + i * 12;
+                            if (view.getUint16(entry, little) === 0x0112) {
+                                info.orientation = view.getUint16(entry + 8, little);
+                                break;
+                            }
+                        }
+                    } else if (marker >= 0xFFC0 && marker <= 0xFFCF && marker !== 0xFFC4 && marker !== 0xFFC8 && marker !== 0xFFCC) {
+                        // SOF: 파일에 실제로 인코딩된(EXIF 회전 미반영) 픽셀 크기
+                        info.sofH = view.getUint16(offset + 5, false);
+                        info.sofW = view.getUint16(offset + 7, false);
+                    }
+                    offset += 2 + segLen;
+                }
+            }
+        } catch (e) { /* 파싱 실패 시 기본값(방향 미상) 유지 */ }
+        callback(info);
+    };
+    reader.onerror = function () { callback({ orientation: 1, sofW: null, sofH: null }); };
+    reader.readAsArrayBuffer(file.slice(0, 256 * 1024));
+}
+
+// 캔버스 좌표계를 EXIF 방향에 맞게 회전/반전 (표준 8방향 보정 테이블)
+function applyExifTransform(ctx, orientation, w, h) {
+    switch (orientation) {
+        case 2: ctx.transform(-1, 0, 0, 1, w, 0); break;
+        case 3: ctx.transform(-1, 0, 0, -1, w, h); break;
+        case 4: ctx.transform(1, 0, 0, -1, 0, h); break;
+        case 5: ctx.transform(0, 1, 1, 0, 0, 0); break;
+        case 6: ctx.transform(0, 1, -1, 0, h, 0); break;
+        case 7: ctx.transform(0, -1, -1, 0, h, w); break;
+        case 8: ctx.transform(0, -1, 1, 0, 0, w); break;
+        default: break; // 1 = 정상
+    }
+}
+
+// === 이미지 전처리 (방향 보정 + 흑백 + 명암대비 + 이진화 - 속도 최적화) ===
 function preprocessImage(file, maxWidth) {
     return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = function (e) {
-            const img = new Image();
-            img.src = e.target.result;
-            img.onload = function () {
-                let w = img.width, h = img.height;
-                // 해상도 줄여서 속도 개선 (1200px이면 충분)
-                const mw = 1200;
-                if (w > mw) { h = h * (mw / w); w = mw; }
+        getExifInfo(file, (exif) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = function (e) {
+                const img = new Image();
+                img.src = e.target.result;
+                img.onload = function () {
+                    const natW = img.width, natH = img.height; // 이 WebView가 실제로 디코딩해 준 크기
 
-                const canvas = document.createElement('canvas');
-                canvas.width = w; canvas.height = h;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, w, h);
+                    // WebView가 EXIF 회전을 이미 자동 반영했는지 "실측"으로 판단.
+                    // SOF(파일 원본 인코딩 크기)와 비교해 가로/세로가 뒤바뀌어 있으면
+                    // 브라우저가 이미 바로 세운 것 → 우리가 또 돌리면 이중회전으로 망가짐 → 스킵.
+                    // 비교 불가(SOF 파싱 실패 등)면 안전하게 무보정(orientation=1)으로 처리.
+                    let orientation = 1;
+                    if (exif.sofW && exif.sofH) {
+                        const rawAsIs = (natW === exif.sofW && natH === exif.sofH);
+                        const alreadyRotated = (exif.sofW !== exif.sofH && natW === exif.sofH && natH === exif.sofW);
+                        if (rawAsIs) orientation = exif.orientation;       // 브라우저가 원본 그대로 줌 → EXIF 태그대로 우리가 보정
+                        else if (alreadyRotated) orientation = 1;          // 브라우저가 이미 돌려줌 → 추가 보정 금지
+                        // 그 외(예상 밖 크기, 크롭 등)는 orientation=1 기본값 유지
+                    }
+                    const swapped = orientation >= 5 && orientation <= 8; // 90도 계열 회전이면 가로세로 교체
 
-                const imageData = ctx.getImageData(0, 0, w, h);
+                    // 1단계: EXIF 방향 보정만 적용한 캔버스 (원본 해상도 유지)
+                    const oriCanvas = document.createElement('canvas');
+                    oriCanvas.width = swapped ? natH : natW;
+                    oriCanvas.height = swapped ? natW : natH;
+                    const oriCtx = oriCanvas.getContext('2d');
+                    oriCtx.save();
+                    // ⚠ 표준 공식은 회전 "전"(원본, natW/natH) 크기를 써야 함 — 캔버스의 회전 후(스왑된) 크기를 넣으면 좌표가 캔버스 밖으로 밀려남
+                    applyExifTransform(oriCtx, orientation, natW, natH);
+                    oriCtx.drawImage(img, 0, 0, natW, natH);
+                    oriCtx.restore();
+
+                    // 2단계: 방향 보정된 이미지를 대상으로 리사이즈 + 흑백/명암/이진화
+                    let w = oriCanvas.width, h = oriCanvas.height;
+                    const mw = maxWidth || 1600;
+                    if (w > mw) { h = h * (mw / w); w = mw; }
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = w; canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(oriCanvas, 0, 0, w, h);
+
+                    const imageData = ctx.getImageData(0, 0, w, h);
                 const d = imageData.data;
                 const len = d.length;
 
@@ -540,9 +654,10 @@ function preprocessImage(file, maxWidth) {
                     d[i] = d[i+1] = d[i+2] = v;
                 }
 
-                ctx.putImageData(imageData, 0, 0);
-                canvas.toBlob(resolve, 'image/jpeg', 0.92);
+                    ctx.putImageData(imageData, 0, 0);
+                    canvas.toBlob(resolve, 'image/jpeg', 0.92);
+                };
             };
-        };
+        });
     });
 }
