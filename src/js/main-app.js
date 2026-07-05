@@ -248,7 +248,7 @@ function resolveDongRegion(selected) {
 let _roadCbSeq = 0;
 function fetchDongRoads(region, onDone) {
     const query = [region.sido, region.gugun, region.dong].filter(Boolean).join(' ');
-    const apiKey = (window.CONFIG && CONFIG.VWORLD_API_KEY) || '259F9CF5-8FAE-303B-8D16-A8F8B7B9C46D';
+    const apiKey = window.__VW_KEY__ || '259F9CF5-8FAE-303B-8D16-A8F8B7B9C46D';
     const MAX_PAGES = 12;                            // 폭주 방지 상한 (한 동당 최대 12,000건)
     const branchRe = /[0-9]+(가|나|다|라|마)?길$/;    // 숫자 가지길 판별
     const roadRe = /(\S+[로길])\s/;                  // 주소 문자열에서 도로명 토큰 추출
@@ -502,7 +502,7 @@ function searchAddress() {
 
     // VWorld Search API 사용 (API 키는 config.js에서 관리)
     const script = document.createElement('script');
-    const apiKey = (window.CONFIG && CONFIG.VWORLD_API_KEY) || '259F9CF5-8FAE-303B-8D16-A8F8B7B9C46D';
+    const apiKey = window.__VW_KEY__ || '259F9CF5-8FAE-303B-8D16-A8F8B7B9C46D';
     script.src = `https://api.vworld.kr/req/search?service=search&request=search&version=2.0&crs=epsg:4326&query=${encodeURIComponent(queryAddress)}&type=ADDRESS&category=${searchCategory}&format=json&errorformat=json&key=${apiKey}&callback=${callbackName}`;
 
     // 에러 처리

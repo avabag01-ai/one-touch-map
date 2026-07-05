@@ -186,7 +186,7 @@ const RouteOptimizer = {
             };
 
             // API 호출 (JSONP 방식)
-            script.src = `https://api.vworld.kr/req/address?service=address&request=getcoord&version=2.0&crs=epsg:4326&address=${encodeURIComponent(address)}&refine=true&simple=false&format=json&type=${type}&key=${VWORLD_API_KEY_OPT}&callback=${callbackName}`;
+            script.src = `https://api.vworld.kr/req/address?service=address&request=getcoord&version=2.0&crs=epsg:4326&address=${encodeURIComponent(address)}&refine=true&simple=false&format=json&type=${type}&key=${window.__VW_KEY__ || VWORLD_API_KEY_OPT}&callback=${callbackName}`;
             document.body.appendChild(script);
         });
     },

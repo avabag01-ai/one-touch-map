@@ -236,6 +236,7 @@
             border-color: #2196F3;
         }
     </style>
+    <script src="vworld-key.js"></script>
 </head>
 
 <body>
@@ -287,7 +288,7 @@
 
             // VWorld 기본 배경지도 (Base)
             vworldBaseLayer = L.tileLayer(
-                'https://api.vworld.kr/req/wmts/1.0.0/259F9CF5-8FAE-303B-8D16-A8F8B7B9C46D/Base/{z}/{y}/{x}.png',
+                'https://api.vworld.kr/req/wmts/1.0.0/' + (window.__VW_KEY__ || '259F9CF5-8FAE-303B-8D16-A8F8B7B9C46D') + '/Base/{z}/{y}/{x}.png',
                 {
                     attribution: '&copy; VWorld',
                     maxZoom: 19,
@@ -299,7 +300,7 @@
             addressLayer = L.tileLayer.wms(
                 'https://api.vworld.kr/req/wms',
                 {
-                    key: '259F9CF5-8FAE-303B-8D16-A8F8B7B9C46D',
+                    key: (window.__VW_KEY__ || '259F9CF5-8FAE-303B-8D16-A8F8B7B9C46D'),
                     domain: 'http://localhost',
                     service: 'WMS',
                     request: 'GetMap',
@@ -688,7 +689,7 @@
         // VWorld 설정
         let vworldBaseLayer;
         let addressLayer; // 도로명주소 레이어
-        const VWORLD_KEY = '259F9CF5-8FAE-303B-8D16-A8F8B7B9C46D';
+        const VWORLD_KEY = window.__VW_KEY__ || '259F9CF5-8FAE-303B-8D16-A8F8B7B9C46D';
 
         // 도로명주소 후보가 여러 개일 때 사용자 선택 팝업 (Promise 반환)
         function showRoadAddressSelector(jibunAddr, candidates) {
