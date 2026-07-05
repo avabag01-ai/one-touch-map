@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>GPS Test</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <!-- VWorld API Key (기존 파일에서 가져옴) -->
+
+    <style>
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* GPS 파란 점 스타일 */
+        .gps-pulse-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .gps-dot {
+            width: 14px;
+            height: 14px;
+            background-color: #2196F3;
+            border: 2px solid white;
+            border-radius: 50%;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+            z-index: 10;
+        }
+
+        .gps-pulse {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background-color: rgba(33, 150, 243, 0.4);
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+            z-index: 1;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(0.5);
+                opacity: 0.8;
+            }
+
+            100% {
+                transform: scale(1.5);
+                opacity: 0;
+            }
+        }
+
+        /* 현재 위치 버튼 */
+        #my-loc-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 20px;
+            z-index: 1000;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: white;
+            border: none;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="map"></div>
+    <button id="my-loc-btn">📍</button>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Leaflet Rotate (회전 지원) -->
+    <script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js"></script>
+
+    <script>
+        const VWORLD_KEY = '58661685-6101-382C-AC6E-76C636066265'; // 사용자 키
+        let map;
+        let gpsMarker = null;
+        let watchId = null;
+
+        function init() {
+            // 1. 지도 생성 (회전 허용)
+            map = L.map('map', {
+                rotate: true,
+                touchRotate: true,
+                center: [37.5665, 126.9780],
+                zoom: 16
+            });
+
+            // 2. VWorld 레이어
+            L.tileLayer(`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_KEY}/Base/{z}/{y}/{x}.png`, {
+                attribution: 'VWorld'
+            }).addTo(map);
+
+            // 3. GPS 시작
+            startGPS();
+        }
+
+        function startGPS() {
+            if (!navigator.geolocation) {
+                alert("GPS not supported");
+                return;
+            }
+
+            // 첫 위치 잡기
+            navigator.geolocation.getCurrentPosition((pos) => {
+                updateGPS(pos);
+                map.setView([pos.coords.latitude, pos.coords.longitude], 17);
+            }, (err) => console.error(err), { enableHighAccuracy: true });
+
+            // 실시간 추적
+            watchId = navigator.geolocation.watchPosition(updateGPS, (err) => console.error(err), {
+                enableHighAccuracy: true,
+                maximumAge: 0,
+                timeout: 5000
+            });
+        }
+
+        function updateGPS(pos) {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+
+            // 마커 생성/이동
+            if (!gpsMarker) {
+                const icon = L.divIcon({
+                    className: 'gps-pulse-icon',
+                    html: '<div class="gps-dot"></div><div class="gps-pulse"></div>',
+                    iconSize: [20, 20]
+                });
+                gpsMarker = L.marker([lat, lng], { icon: icon }).addTo(map);
+            } else {
+                gpsMarker.setLatLng([lat, lng]);
+            }
+
+            // 지도 중심 이동 (부드럽게)
+            // 지도가 너무 멀어지지 않았으면 따라감. 
+            // 단, 사용자가 회전하거나 조작 중일 때를 고려해 'flyTo' 대신 'panTo'나 'setView' 사용
+            // 여기서는 단순하게 "무조건 따라가기"로 테스트 (회전이 풀리는지 확인용)
+            // map.setView([lat, lng], map.getZoom(), {animate: true, duration: 0.5});
+        }
+
+        // 버튼 누르면 내 위치로
+        document.getElementById('my-loc-btn').onclick = () => {
+            if (gpsMarker) {
+                map.setView(gpsMarker.getLatLng(), 17, { animate: true });
+            }
+        };
+
+        window.onload = init;
+    </script>
+</body>
+
+</html>

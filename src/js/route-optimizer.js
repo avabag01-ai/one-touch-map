@@ -2,7 +2,7 @@
 // 기능: 현재 위치 기준 최단 경로 정렬, 주소 좌표 변환
 
 // API 키는 config.js의 CONFIG.VWORLD_API_KEY 에서 가져옴 (없으면 fallback)
-const VWORLD_API_KEY_OPT = (window.CONFIG && CONFIG.VWORLD_API_KEY) || 'EEB68327-5D04-3BE3-9072-D3ECFCCC26A2';
+const VWORLD_API_KEY_OPT = (window.CONFIG && CONFIG.VWORLD_API_KEY) || '259F9CF5-8FAE-303B-8D16-A8F8B7B9C46D';
 
 const RouteOptimizer = {
     // 메인 함수: 배송 리스트를 받아 최적화된 리스트를 반환
