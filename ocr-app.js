@@ -672,8 +672,29 @@ function showCropModal(oriCanvas) {
     canvas.style.height = dispH + 'px';
     canvas.getContext('2d').drawImage(oriCanvas, 0, 0, canvas.width, canvas.height);
 
-    box.style.display = 'none';
     cropState = { oriCanvas, scale, dispW, dispH, rect: null, dragging: false, startX: 0, startY: 0 };
+
+    // 지난번에 확정했던 크롭 위치(비율)가 있으면 자동으로 미리 표시 — 같은 양식 사진이면
+    // 매번 다시 드래그할 필요 없이 바로 "이 부분 인식"만 누르면 됨. 다르면 다시 드래그해서 덮어쓰면 됨.
+    let template = null;
+    try { template = JSON.parse(localStorage.getItem('ocrCropTemplate') || 'null'); } catch (e) { template = null; }
+    const desc = document.querySelector('#cropModal .modal-desc');
+    if (template && template.wPct > 0 && template.hPct > 0) {
+        const left = Math.round(template.leftPct * dispW);
+        const top = Math.round(template.topPct * dispH);
+        const w = Math.round(template.wPct * dispW);
+        const h = Math.round(template.hPct * dispH);
+        box.style.display = 'block';
+        box.style.left = left + 'px';
+        box.style.top = top + 'px';
+        box.style.width = w + 'px';
+        box.style.height = h + 'px';
+        cropState.rect = { left, top, w, h };
+        if (desc) desc.textContent = '지난번 선택 위치가 표시됐어요. 맞으면 바로 인식, 다르면 다시 드래그하세요.';
+    } else {
+        box.style.display = 'none';
+        if (desc) desc.textContent = '주소가 있는 부분만 손가락으로 드래그해 선택하세요.';
+    }
 
     modal.style.display = 'flex';
 }
@@ -695,6 +716,16 @@ function cropAndRecognize(useFullImage) {
         sy = Math.max(0, Math.round(rect.top / scale));
         sw = Math.min(oriCanvas.width - sx, Math.round(rect.w / scale));
         sh = Math.min(oriCanvas.height - sy, Math.round(rect.h / scale));
+
+        // 같은 양식 사진을 다음에 또 스캔할 때 자동으로 이 위치를 미리 보여주기 위해 비율로 저장
+        try {
+            localStorage.setItem('ocrCropTemplate', JSON.stringify({
+                leftPct: sx / oriCanvas.width,
+                topPct: sy / oriCanvas.height,
+                wPct: sw / oriCanvas.width,
+                hPct: sh / oriCanvas.height
+            }));
+        } catch (e) { /* 저장 실패해도 인식엔 지장 없음 */ }
     }
 
     const out = document.createElement('canvas');
