@@ -54,7 +54,9 @@ async function recognizeAddress(blob) {
         await worker.initialize('kor');
     }
 
-    await worker.setParameters({});
+    // 인식 대상을 숫자/하이픈/동 약자(중묵망신면상 등)로만 제한 → 이름·전화번호·시간대 텍스트에
+    // 흔들리지 않고 주소 부분만 정확히 읽게 함 (이전엔 계산만 하고 실제로 적용 안 하던 버그)
+    await worker.setParameters({ tessedit_char_whitelist: config.whitelist });
 
     const { data } = await worker.recognize(blob);
     console.log('OCR 원본 결과:', data.text);
