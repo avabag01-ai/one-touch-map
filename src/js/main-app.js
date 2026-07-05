@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderDongRadios();
     updateQuickSelect();
     updateRoadTypeSelect();
-    setupScanFeature();
+    if (typeof setupScanFeature === 'function') setupScanFeature();
 });
 
 // 설정 불러오기
