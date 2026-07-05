@@ -600,7 +600,10 @@ function preprocessImage(file, maxWidth) {
                     oriCtx.drawImage(img, 0, 0, natW, natH);
                     oriCtx.restore();
 
-                    // 2단계: 방향 보정된 이미지를 대상으로 리사이즈 + 흑백/명암/이진화
+                    // 2단계: 방향 보정된 이미지를 리사이즈만 하고 그대로 Tesseract에 전달
+                    // (그레이스케일+명암대비+Otsu 이진화를 직접 했었는데, 실제 사진으로 비교
+                    //  테스트해보니 수동 이진화가 오히려 인식률을 깎아먹었음 — Tesseract 자체
+                    //  내장 처리가 사진 특유의 불균일한 조명/그림자에 더 강함. 그래서 제거함)
                     let w = oriCanvas.width, h = oriCanvas.height;
                     const mw = maxWidth || 1600;
                     if (w > mw) { h = h * (mw / w); w = mw; }
@@ -610,51 +613,6 @@ function preprocessImage(file, maxWidth) {
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(oriCanvas, 0, 0, w, h);
 
-                    const imageData = ctx.getImageData(0, 0, w, h);
-                const d = imageData.data;
-                const len = d.length;
-
-                // 1패스: 그레이스케일 + min/max 동시 계산
-                let mn = 255, mx = 0;
-                for (let i = 0; i < len; i += 4) {
-                    const g = (d[i] * 77 + d[i+1] * 150 + d[i+2] * 29) >> 8;
-                    d[i] = d[i+1] = d[i+2] = g;
-                    if (g < mn) mn = g;
-                    if (g > mx) mx = g;
-                }
-
-                // 2패스: 명암대비 + 히스토그램 동시
-                const rng = mx - mn || 1;
-                const hist = new Uint32Array(256);
-                for (let i = 0; i < len; i += 4) {
-                    const v = ((d[i] - mn) * 255 / rng) | 0;
-                    d[i] = d[i+1] = d[i+2] = v;
-                    hist[v]++;
-                }
-
-                // Otsu 임계값
-                const total = w * h;
-                let sum = 0;
-                for (let i = 0; i < 256; i++) sum += i * hist[i];
-                let sB = 0, wB = 0, maxV = 0, thr = 128;
-                for (let t = 0; t < 256; t++) {
-                    wB += hist[t];
-                    if (wB === 0) continue;
-                    const wF = total - wB;
-                    if (wF === 0) break;
-                    sB += t * hist[t];
-                    const diff = sB / wB - (sum - sB) / wF;
-                    const v = wB * wF * diff * diff;
-                    if (v > maxV) { maxV = v; thr = t; }
-                }
-
-                // 3패스: 이진화
-                for (let i = 0; i < len; i += 4) {
-                    const v = d[i] < thr ? 0 : 255;
-                    d[i] = d[i+1] = d[i+2] = v;
-                }
-
-                    ctx.putImageData(imageData, 0, 0);
                     canvas.toBlob(resolve, 'image/jpeg', 0.92);
                 };
             };
