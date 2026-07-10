@@ -2,6 +2,7 @@ import Foundation
 import Capacitor
 import CoreLocation
 import UserNotifications
+import AVFoundation
 
 // 원터치맵 지오펜싱 플러그인 (Swift-only, CAPBridgedPlugin 준수)
 // 웹(JS)에서 배송지 좌표 목록을 넘기면, 현재 위치에서 "제일 가까운 1곳"만 20m 반경으로
@@ -167,6 +168,7 @@ public class GeofencePlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
         let arrived = destinations[idx]
 
         fireNotification(jibun: arrived.jibun)
+        speak(jibun: arrived.jibun)   // 에어팟/스피커로 번지수 음성 안내
         notifyListeners("arrived", data: ["id": arrived.id, "jibun": arrived.jibun])
 
         destinations.remove(at: idx)   // 이 지점 제거 후 다음 제일 가까운 곳 등록
@@ -179,5 +181,24 @@ public class GeofencePlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
         content.sound = .default
         let req = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
         UNUserNotificationCenter.current().add(req, withCompletionHandler: nil)
+    }
+
+    // MARK: - 음성 안내 (TTS)
+
+    private let synthesizer = AVSpeechSynthesizer()
+
+    // "128-46" → "128 다시 46" 으로 읽음 (한국 지번 관용 읽기). 음악 재생 중이면 잠깐 줄이고 말한 뒤 복원.
+    private func speak(jibun: String) {
+        guard !jibun.isEmpty else { return }
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, options: [.duckOthers])
+            try AVAudioSession.sharedInstance().setActive(true)
+        } catch { /* 오디오 세션 실패해도 알림은 이미 떴으므로 무시 */ }
+
+        let text = jibun.replacingOccurrences(of: "-", with: " 다시 ")
+        let utter = AVSpeechUtterance(string: text)
+        utter.voice = AVSpeechSynthesisVoice(language: "ko-KR")
+        utter.rate = AVSpeechUtteranceDefaultSpeechRate
+        synthesizer.speak(utter)
     }
 }
