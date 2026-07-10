@@ -37,6 +37,9 @@
         <button class="action-btn" id="fileBtn" style="background:#673AB7; color:white;">
             OCR 인식
         </button>
+        <button class="action-btn" id="geofenceBtn" data-on="0">
+            📍 도착알림
+        </button>
     </div>
 
     <div class="full-width-btn">
@@ -112,6 +115,44 @@
       function showToast(message){var t=document.createElement('div');t.textContent=message;t.style.cssText='position:fixed;left:50%;bottom:80px;transform:translateX(-50%);background:rgba(0,0,0,.85);color:#fff;padding:10px 18px;border-radius:20px;font-size:14px;z-index:9999;';document.body.appendChild(t);setTimeout(function(){t.remove();},2000);}
       function onDeliveriesUpdated(){if(typeof loadDeliveries==='function')loadDeliveries();if(typeof renderList==='function')renderList();}
       if(typeof setupScanFeature==='function')setupScanFeature();
+
+      // === 도착 알림(지오펜싱) — 배송지 20m 근처 도착 시 번지수 알림 ===
+      // 신주소(도로명) 건물번호를 우선 사용, 없으면 지번 번호
+      function deliveryNumber(d){
+        var road = d.addressAfter || '';
+        var m = road.match(/(\d+(?:-\d+)?)\s*$/);
+        if(m) return m[1];
+        return d.jibun || d.addressBefore || '';
+      }
+      async function toggleGeofence(){
+        var G = window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.Geofence;
+        if(!G){ showToast('이 기능은 설치된 앱에서만 동작해요'); return; }
+        var btn = document.getElementById('geofenceBtn');
+        var on = btn.dataset.on === '1';
+        try {
+          if(on){
+            await G.stop();
+            btn.dataset.on='0'; btn.textContent='📍 도착알림'; btn.style.background=''; btn.style.color='';
+            showToast('도착 알림 꺼짐');
+          } else {
+            var all = JSON.parse(localStorage.getItem('deliveries')||'[]');
+            var dests = all.filter(function(d){return d.lat && d.lng;})
+                           .map(function(d){return {id:String(d.id), jibun:String(deliveryNumber(d)), lat:d.lat, lng:d.lng};});
+            if(!dests.length){ showToast('먼저 🚀최적경로로 좌표를 계산하세요'); return; }
+            await G.requestGeoPermissions();
+            // 진단용 리스너 (1회만 등록): 감시 대상/거리와 도착 이벤트를 토스트로 표시
+            if(!window.__geoListened){
+              window.__geoListened = true;
+              G.addListener('registered', function(e){ showToast('감시중: '+e.jibun+' ('+e.distance+'m 거리)'); });
+              G.addListener('arrived', function(e){ showToast('도착! '+e.jibun); });
+            }
+            await G.start({destinations:dests});
+            btn.dataset.on='1'; btn.textContent='📍 알림 켜짐'; btn.style.background='#4CAF50'; btn.style.color='#fff';
+            showToast(dests.length+'곳 도착 알림 켜짐 (가장 가까운 곳 감시)');
+          }
+        } catch(e){ showToast('오류: '+(e && e.message || e)); }
+      }
+      (function(){ var b=document.getElementById('geofenceBtn'); if(b) b.addEventListener('click', toggleGeofence); })();
     </script>
 </body>
 

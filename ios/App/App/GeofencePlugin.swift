@@ -1,0 +1,183 @@
+import Foundation
+import Capacitor
+import CoreLocation
+import UserNotifications
+
+// 원터치맵 지오펜싱 플러그인 (Swift-only, CAPBridgedPlugin 준수)
+// 웹(JS)에서 배송지 좌표 목록을 넘기면, 현재 위치에서 "제일 가까운 1곳"만 20m 반경으로
+// 감시한다. 그 지점 20m 안에 들어오면 번지수(jibun)만 로컬 알림으로 띄우고, 해당 지점을
+// 목록에서 제외한 뒤 그다음으로 가까운 곳을 다시 등록한다. 앱이 백그라운드/종료 상태여도
+// iOS가 대신 감시하다 알림을 띄운다.
+@objc(GeofencePlugin)
+public class GeofencePlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate, UNUserNotificationCenterDelegate {
+
+    // --- CAPBridgedPlugin 프로토콜 요구사항 (capacitor.config.json packageClassList 등록으로 자동 로드) ---
+    public let identifier = "GeofencePlugin"
+    public let jsName = "Geofence"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "requestGeoPermissions", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "start", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "stop", returnType: CAPPluginReturnPromise)
+    ]
+
+    private let manager = CLLocationManager()
+    private let regionId = "onetouchmap.nearest"   // 항상 이 하나의 리전만 사용(교체식)
+
+    // 웹에서 받은 전체 배송지 목록 (등록 후보). 진입 완료한 곳은 여기서 제거.
+    private struct Dest {
+        let id: String
+        let jibun: String   // 알림에 띄울 번지수 (도로명 아님)
+        let lat: Double
+        let lng: Double
+    }
+    private var destinations: [Dest] = []
+    private var monitoringEnabled = false
+    private let fenceRadius: CLLocationDistance = 20   // 반경 20m (외부 GPS 기준 실용값)
+
+    override public func load() {
+        manager.delegate = self
+        manager.desiredAccuracy = kCLLocationAccuracyBest
+        manager.allowsBackgroundLocationUpdates = true
+        manager.pausesLocationUpdatesAutomatically = false
+        // ⚠ 앱이 포그라운드(화면에 떠 있는 상태)일 때 iOS는 기본적으로 알림 배너를 숨긴다.
+        // 델리게이트에서 willPresent를 구현해야 앱 사용 중에도 배너가 보임.
+        UNUserNotificationCenter.current().delegate = self
+    }
+
+    // 앱 사용 중(포그라운드)에도 알림 배너+소리 표시
+    public func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                       willPresent notification: UNNotification,
+                                       withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.alert, .sound])
+    }
+
+    // MARK: - JS에서 호출하는 메서드
+
+    // 권한 요청 (위치 Always + 알림). 웹에서 지오펜싱 켤 때 먼저 호출.
+    @objc func requestGeoPermissions(_ call: CAPPluginCall) {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
+        DispatchQueue.main.async { self.manager.requestAlwaysAuthorization() }
+        call.resolve(["ok": true])
+    }
+
+    // 배송지 목록 전달 + 감시 시작. destinations = [{id, jibun, lat, lng}, ...]
+    @objc func start(_ call: CAPPluginCall) {
+        guard let arr = call.getArray("destinations", JSObject.self) else {
+            call.reject("destinations 배열이 필요합니다")
+            return
+        }
+        destinations = arr.compactMap { obj in
+            guard let lat = obj["lat"] as? Double,
+                  let lng = obj["lng"] as? Double else { return nil }
+            let id = (obj["id"] as? String) ?? UUID().uuidString
+            let jibun = (obj["jibun"] as? String) ?? ""
+            return Dest(id: id, jibun: jibun, lat: lat, lng: lng)
+        }
+        monitoringEnabled = true
+        DispatchQueue.main.async {
+            self.manager.startUpdatingLocation()   // 현재 위치 알아야 "제일 가까운 곳" 계산 가능
+            self.registerNearest()
+        }
+        call.resolve(["ok": true, "count": destinations.count])
+    }
+
+    // 감시 중단 + 모든 리전 해제
+    @objc func stop(_ call: CAPPluginCall) {
+        monitoringEnabled = false
+        DispatchQueue.main.async {
+            for r in self.manager.monitoredRegions { self.manager.stopMonitoring(for: r) }
+            self.manager.stopUpdatingLocation()
+        }
+        call.resolve(["ok": true])
+    }
+
+    // MARK: - 핵심 로직: 현재 위치에서 제일 가까운 1곳만 리전 등록
+
+    private func registerNearest() {
+        guard monitoringEnabled else { return }
+        for r in manager.monitoredRegions { manager.stopMonitoring(for: r) }   // 항상 1개만 유지
+
+        guard let here = manager.location else { return }   // 현재 위치 아직 없으면 위치 콜백에서 재시도
+        guard !destinations.isEmpty else { return }
+
+        var nearest: Dest?
+        var best = Double.greatestFiniteMagnitude
+        for d in destinations {
+            let dist = here.distance(from: CLLocation(latitude: d.lat, longitude: d.lng))
+            if dist < best { best = dist; nearest = d }
+        }
+        guard let target = nearest else { return }
+
+        let region = CLCircularRegion(
+            center: CLLocationCoordinate2D(latitude: target.lat, longitude: target.lng),
+            radius: fenceRadius,
+            identifier: regionId
+        )
+        region.notifyOnEntry = true
+        region.notifyOnExit = false
+        manager.startMonitoring(for: region)
+        manager.requestState(for: region)   // 이미 반경 안이면 진입 콜백이 안 오므로 즉시 상태 확인
+
+        // 진단용: 웹에 "지금 어느 주소를 몇 m 거리에서 감시 중인지" 알려줌 (토스트 표시용)
+        notifyListeners("registered", data: ["jibun": target.jibun, "distance": Int(best)])
+    }
+
+    // MARK: - CLLocationManagerDelegate
+
+    public func locationManager(_ m: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        if monitoringEnabled && manager.monitoredRegions.isEmpty {
+            registerNearest()   // 최초 위치 확보 시점에 리전 등록
+        }
+    }
+
+    public func locationManager(_ m: CLLocationManager, didEnterRegion region: CLRegion) {
+        handleArrival()
+    }
+
+    public func locationManager(_ m: CLLocationManager, didDetermineState state: CLRegionState, for region: CLRegion) {
+        if state == .inside { handleArrival() }
+    }
+
+    // iOS 14+ 권한 변경 콜백 (구식 didChangeAuthorization은 최신 iOS에서 호출 안 될 수 있어 둘 다 구현)
+    public func locationManagerDidChangeAuthorization(_ m: CLLocationManager) {
+        guard #available(iOS 14.0, *) else { return }   // 배포타겟 iOS13 호환용 가드
+        let status = m.authorizationStatus
+        if monitoringEnabled && (status == .authorizedAlways || status == .authorizedWhenInUse) {
+            manager.startUpdatingLocation()
+            registerNearest()
+        }
+    }
+
+    public func locationManager(_ m: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
+        if monitoringEnabled && (status == .authorizedAlways || status == .authorizedWhenInUse) {
+            manager.startUpdatingLocation()
+            registerNearest()
+        }
+    }
+
+    private func handleArrival() {
+        guard monitoringEnabled, let here = manager.location else { return }
+        var arrivedIdx: Int?
+        var best = Double.greatestFiniteMagnitude
+        for (i, d) in destinations.enumerated() {
+            let dist = here.distance(from: CLLocation(latitude: d.lat, longitude: d.lng))
+            if dist < best { best = dist; arrivedIdx = i }
+        }
+        guard let idx = arrivedIdx else { return }
+        let arrived = destinations[idx]
+
+        fireNotification(jibun: arrived.jibun)
+        notifyListeners("arrived", data: ["id": arrived.id, "jibun": arrived.jibun])
+
+        destinations.remove(at: idx)   // 이 지점 제거 후 다음 제일 가까운 곳 등록
+        registerNearest()
+    }
+
+    private func fireNotification(jibun: String) {
+        let content = UNMutableNotificationContent()
+        content.title = jibun.isEmpty ? "배송지 도착" : jibun   // 번지수만 크게
+        content.sound = .default
+        let req = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+        UNUserNotificationCenter.current().add(req, withCompletionHandler: nil)
+    }
+}

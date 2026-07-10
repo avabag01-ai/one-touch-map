@@ -27,7 +27,11 @@
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>지도에 현재 위치를 표시하고 가장 가까운 배송지까지 안내하기 위해 위치 정보가 필요합니다.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>지도에 현재 위치를 표시하고 가장 가까운 배송지까지 안내하기 위해 위치 정보가 필요합니다.</string>
+	<string>배송지 20m 근처에 도착하면 번지수를 알림으로 알려드리기 위해, 앱이 백그라운드에 있을 때도 위치 정보가 필요합니다.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>배송전표를 촬영하여 주소를 자동으로 인식하기 위해 카메라 접근이 필요합니다.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

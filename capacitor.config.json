@@ -1,22 +1,25 @@
 {
-  "appId": "com.avabag01.onetouchmap",
-  "appName": "원터치맵",
-  "webDir": "www",
-  "server": {
-    "androidScheme": "https",
-    "hostname": "localhost"
-  },
-  "plugins": {
-    "SplashScreen": {
-      "launchShowDuration": 2000,
-      "backgroundColor": "#2196F3"
-    }
-  },
-  "android": {
-    "allowMixedContent": true,
-    "webContentsDebuggingEnabled": false
-  },
-  "ios": {
-    "contentInset": "always"
-  }
+	"appId": "com.avabag01.onetouchmap",
+	"appName": "원터치맵",
+	"webDir": "www",
+	"server": {
+		"androidScheme": "https",
+		"hostname": "localhost"
+	},
+	"plugins": {
+		"SplashScreen": {
+			"launchShowDuration": 2000,
+			"backgroundColor": "#2196F3"
+		}
+	},
+	"android": {
+		"allowMixedContent": true,
+		"webContentsDebuggingEnabled": false
+	},
+	"ios": {
+		"contentInset": "always"
+	},
+	"packageClassList": [
+		"GeofencePlugin"
+	]
 }
