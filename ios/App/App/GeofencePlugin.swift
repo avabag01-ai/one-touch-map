@@ -22,7 +22,16 @@ public class GeofencePlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
     ]
 
     private let manager = CLLocationManager()
-    private let regionId = "onetouchmap.nearest"   // 항상 이 하나의 리전만 사용(교체식)
+    // 제일 가까운 곳에 대해 두 개의 리전을 동시에 감시: 100m(예고) + 20m(도착)
+    private let regionApproach = "onetouchmap.approach"   // 100m 접근 → 음성 예고
+    private let regionArrive = "onetouchmap.arrive"       // 20m 도착 → 알림 + 음성
+    private let approachRadius: CLLocationDistance = 100
+    private let arriveRadius: CLLocationDistance = 20
+
+    // 현재 감시 중인 타겟 (리전 진입 시 어느 배송지인지 식별용)
+    private var currentTargetId: String?
+    private var currentTargetJibun: String = ""
+    private var approachAnnounced = false   // 이번 타겟 예고 음성 1회만
 
     // 웹에서 받은 전체 배송지 목록 (등록 후보). 진입 완료한 곳은 여기서 제거.
     private struct Dest {
@@ -33,7 +42,6 @@ public class GeofencePlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
     }
     private var destinations: [Dest] = []
     private var monitoringEnabled = false
-    private let fenceRadius: CLLocationDistance = 20   // 반경 20m (외부 GPS 기준 실용값)
 
     override public func load() {
         manager.delegate = self
@@ -109,15 +117,19 @@ public class GeofencePlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
         }
         guard let target = nearest else { return }
 
-        let region = CLCircularRegion(
-            center: CLLocationCoordinate2D(latitude: target.lat, longitude: target.lng),
-            radius: fenceRadius,
-            identifier: regionId
-        )
-        region.notifyOnEntry = true
-        region.notifyOnExit = false
-        manager.startMonitoring(for: region)
-        manager.requestState(for: region)   // 이미 반경 안이면 진입 콜백이 안 오므로 즉시 상태 확인
+        currentTargetId = target.id
+        currentTargetJibun = target.jibun
+        approachAnnounced = false
+
+        // 100m(예고) + 20m(도착) 두 리전 등록
+        let center = CLLocationCoordinate2D(latitude: target.lat, longitude: target.lng)
+        for (id, radius) in [(regionApproach, approachRadius), (regionArrive, arriveRadius)] {
+            let region = CLCircularRegion(center: center, radius: radius, identifier: id)
+            region.notifyOnEntry = true
+            region.notifyOnExit = false
+            manager.startMonitoring(for: region)
+            manager.requestState(for: region)   // 이미 반경 안이면 진입 콜백이 안 오므로 즉시 상태 확인
+        }
 
         // 진단용: 웹에 "지금 어느 주소를 몇 m 거리에서 감시 중인지" 알려줌 (토스트 표시용)
         notifyListeners("registered", data: ["jibun": target.jibun, "distance": Int(best)])
@@ -132,11 +144,24 @@ public class GeofencePlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
     }
 
     public func locationManager(_ m: CLLocationManager, didEnterRegion region: CLRegion) {
-        handleArrival()
+        handleRegion(region.identifier)
     }
 
     public func locationManager(_ m: CLLocationManager, didDetermineState state: CLRegionState, for region: CLRegion) {
-        if state == .inside { handleArrival() }
+        if state == .inside { handleRegion(region.identifier) }
+    }
+
+    private func handleRegion(_ id: String) {
+        if id == regionArrive { handleArrival() }        // 20m 도착 우선
+        else if id == regionApproach { handleApproach() } // 100m 예고
+    }
+
+    // 100m 접근 → 음성 예고 1회 ("다음 128 다시 46이요")
+    private func handleApproach() {
+        guard monitoringEnabled, !approachAnnounced, !currentTargetJibun.isEmpty else { return }
+        approachAnnounced = true
+        speak(jibun: currentTargetJibun, prefix: "다음 ", suffix: "이요")
+        notifyListeners("approach", data: ["jibun": currentTargetJibun])
     }
 
     // iOS 14+ 권한 변경 콜백 (구식 didChangeAuthorization은 최신 iOS에서 호출 안 될 수 있어 둘 다 구현)
@@ -157,21 +182,21 @@ public class GeofencePlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
     }
 
     private func handleArrival() {
-        guard monitoringEnabled, let here = manager.location else { return }
-        var arrivedIdx: Int?
-        var best = Double.greatestFiniteMagnitude
-        for (i, d) in destinations.enumerated() {
-            let dist = here.distance(from: CLLocation(latitude: d.lat, longitude: d.lng))
-            if dist < best { best = dist; arrivedIdx = i }
+        guard monitoringEnabled else { return }
+        // 도착한 곳 = 현재 감시 중이던 타겟
+        let arrivedId = currentTargetId
+        let arrivedJibun = currentTargetJibun
+        guard !arrivedJibun.isEmpty || arrivedId != nil else { return }
+
+        fireNotification(jibun: arrivedJibun)
+        speak(jibun: arrivedJibun)   // 에어팟/스피커로 번지수 음성 안내
+        notifyListeners("arrived", data: ["id": arrivedId ?? "", "jibun": arrivedJibun])
+
+        // 이 지점 제거 후 다음 제일 가까운 곳 등록
+        if let aid = arrivedId, let idx = destinations.firstIndex(where: { $0.id == aid }) {
+            destinations.remove(at: idx)
         }
-        guard let idx = arrivedIdx else { return }
-        let arrived = destinations[idx]
-
-        fireNotification(jibun: arrived.jibun)
-        speak(jibun: arrived.jibun)   // 에어팟/스피커로 번지수 음성 안내
-        notifyListeners("arrived", data: ["id": arrived.id, "jibun": arrived.jibun])
-
-        destinations.remove(at: idx)   // 이 지점 제거 후 다음 제일 가까운 곳 등록
+        currentTargetId = nil
         registerNearest()
     }
 
@@ -188,15 +213,16 @@ public class GeofencePlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
     private let synthesizer = AVSpeechSynthesizer()
 
     // "128-46" → "128 다시 46" 으로 읽음 (한국 지번 관용 읽기). 음악 재생 중이면 잠깐 줄이고 말한 뒤 복원.
-    private func speak(jibun: String) {
+    // prefix/suffix로 예고("다음 …이요")와 도착(번지수만)을 구분.
+    private func speak(jibun: String, prefix: String = "", suffix: String = "") {
         guard !jibun.isEmpty else { return }
         do {
             try AVAudioSession.sharedInstance().setCategory(.playback, options: [.duckOthers])
             try AVAudioSession.sharedInstance().setActive(true)
         } catch { /* 오디오 세션 실패해도 알림은 이미 떴으므로 무시 */ }
 
-        let text = jibun.replacingOccurrences(of: "-", with: " 다시 ")
-        let utter = AVSpeechUtterance(string: text)
+        let num = jibun.replacingOccurrences(of: "-", with: " 다시 ")
+        let utter = AVSpeechUtterance(string: prefix + num + suffix)
         utter.voice = AVSpeechSynthesisVoice(language: "ko-KR")
         utter.rate = AVSpeechUtteranceDefaultSpeechRate
         synthesizer.speak(utter)
