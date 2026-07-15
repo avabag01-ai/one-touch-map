@@ -40,6 +40,9 @@
         <button class="action-btn" id="geofenceBtn" data-on="0">
             📍 도착알림
         </button>
+        <button class="action-btn" id="geoSettingsBtn" title="알림 반경 설정">
+            ⚙️ 반경
+        </button>
     </div>
 
     <div class="full-width-btn">
@@ -97,6 +100,31 @@
             </div>
         </div>
     </div>
+    <!-- 도착 알림 반경 설정 -->
+    <div id="geoSettingsModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <h3>📍 도착 알림 반경</h3>
+            <p class="modal-desc">배송지에 얼마나 가까워지면 알릴지 정해요.</p>
+            <div style="margin:16px 0 4px;">
+                <label style="display:flex; justify-content:space-between; align-items:center; font-size:14px; margin-bottom:4px;">
+                    <span>🎧 예고 음성 (에어팟)</span>
+                    <b style="color:#3F51B5;"><span id="approachRadiusVal">100</span>m</b>
+                </label>
+                <input type="range" id="approachRadiusSlider" min="50" max="300" step="10" value="100" style="width:100%;">
+            </div>
+            <div style="margin:16px 0 4px;">
+                <label style="display:flex; justify-content:space-between; align-items:center; font-size:14px; margin-bottom:4px;">
+                    <span>⌚ 도착 알림 (워치/폰)</span>
+                    <b style="color:#3F51B5;"><span id="arriveRadiusVal">20</span>m</b>
+                </label>
+                <input type="range" id="arriveRadiusSlider" min="10" max="100" step="5" value="20" style="width:100%;">
+            </div>
+            <p class="modal-desc" style="font-size:12px; color:#888;">예고는 도착보다 항상 20m 이상 멀리 잡혀요. GPS 특성상 10~30m 오차가 있을 수 있어요.</p>
+            <div class="modal-actions">
+                <button id="geoSettingsCloseBtn" class="btn-confirm">확인</button>
+            </div>
+        </div>
+    </div>
     <div id="ocrModal" class="modal-overlay" style="display: none;">
         <div class="modal-content">
             <h3>📝 스캔 결과 확인</h3>
@@ -125,6 +153,13 @@
         return d.jibun || d.addressBefore || '';
       }
       function geoPlugin(){ return window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.Geofence; }
+      // 알림 반경 설정 (localStorage 저장, 지오펜싱 시작 시 네이티브로 전달)
+      function geoRadii(){
+        return {
+          approach: parseInt(localStorage.getItem('geoApproachRadius')||'100',10),
+          arrive: parseInt(localStorage.getItem('geoArriveRadius')||'20',10)
+        };
+      }
       function setGeoBtnUI(on){
         var btn = document.getElementById('geofenceBtn');
         if(!btn) return;
@@ -165,7 +200,8 @@
             if(!dests.length){ showToast('좌표를 찾지 못했어요. 주소를 확인해 주세요'); return; }
             await G.requestGeoPermissions();
             ensureGeoListeners(G);
-            await G.start({destinations:dests});
+            var r = geoRadii();
+            await G.start({destinations:dests, approachRadius:r.approach, arriveRadius:r.arrive});
             setGeoBtnUI(true);
             var skipped = all.length - dests.length;
             showToast(dests.length+'곳 도착 알림 켜짐'+(skipped?' (좌표 실패 '+skipped+'곳 제외)':'')+' — 가장 가까운 곳 감시');
@@ -182,6 +218,52 @@
             if(s && s.enabled){ setGeoBtnUI(true); ensureGeoListeners(G); }
           }).catch(function(){});
         }
+      })();
+
+      // === 반경 설정 모달 ===
+      (function(){
+        var modal = document.getElementById('geoSettingsModal');
+        var sA = document.getElementById('approachRadiusSlider');   // 예고(에어팟)
+        var sR = document.getElementById('arriveRadiusSlider');     // 도착(워치/폰)
+        var vA = document.getElementById('approachRadiusVal');
+        var vR = document.getElementById('arriveRadiusVal');
+        if(!modal || !sA || !sR) return;
+
+        function refreshLabels(){ vA.textContent = sA.value; vR.textContent = sR.value; }
+        // 예고는 도착보다 최소 20m 바깥 유지 (안이면 도착이 먼저 울려 예고가 무의미)
+        function keepGap(changed){
+          var a = parseInt(sA.value,10), r = parseInt(sR.value,10);
+          if(a < r + 20){
+            if(changed === 'arrive'){ sA.value = Math.min(r + 20, parseInt(sA.max,10)); }
+            else { sR.value = Math.max(a - 20, parseInt(sR.min,10)); }
+          }
+          refreshLabels();
+        }
+        function save(){
+          localStorage.setItem('geoApproachRadius', sA.value);
+          localStorage.setItem('geoArriveRadius', sR.value);
+          // 알림이 켜진 상태면 즉시 반영 (네이티브가 현재 타겟 리전 재등록)
+          var G = geoPlugin();
+          if(G && G.setRadii && document.getElementById('geofenceBtn').dataset.on === '1'){
+            G.setRadii({approachRadius: parseInt(sA.value,10), arriveRadius: parseInt(sR.value,10)})
+             .then(function(){ showToast('반경 적용됨: 예고 '+sA.value+'m / 도착 '+sR.value+'m'); })
+             .catch(function(e){ showToast('반경 적용 실패: '+(e && e.message || e)); });
+          }
+        }
+        sA.addEventListener('input', function(){ keepGap('approach'); });
+        sR.addEventListener('input', function(){ keepGap('arrive'); });
+        sA.addEventListener('change', save);
+        sR.addEventListener('change', save);
+
+        document.getElementById('geoSettingsBtn').addEventListener('click', function(){
+          var r = geoRadii();
+          sA.value = r.approach; sR.value = r.arrive;
+          refreshLabels();
+          modal.style.display = 'flex';
+        });
+        document.getElementById('geoSettingsCloseBtn').addEventListener('click', function(){
+          modal.style.display = 'none';
+        });
       })();
     </script>
 </body>

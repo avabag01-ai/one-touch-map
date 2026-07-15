@@ -19,15 +19,17 @@ public class GeofencePlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
         CAPPluginMethod(name: "requestGeoPermissions", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "start", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "stop", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "status", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "status", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setRadii", returnType: CAPPluginReturnPromise)
     ]
 
     private let manager = CLLocationManager()
     // 제일 가까운 곳에 대해 두 개의 리전을 동시에 감시: 100m(예고) + 20m(도착)
-    private let regionApproach = "onetouchmap.approach"   // 100m 접근 → 음성 예고
-    private let regionArrive = "onetouchmap.arrive"       // 20m 도착 → 알림 + 음성
-    private let approachRadius: CLLocationDistance = 100
-    private let arriveRadius: CLLocationDistance = 20
+    private let regionApproach = "onetouchmap.approach"   // 접근 → 음성 예고
+    private let regionArrive = "onetouchmap.arrive"       // 도착 → 알림 + 음성
+    // 반경은 웹 설정 슬라이더에서 조절 (기본 100m/20m)
+    private var approachRadius: CLLocationDistance = 100
+    private var arriveRadius: CLLocationDistance = 20
 
     // 현재 감시 중인 타겟 (리전 진입 시 어느 배송지인지 식별용)
     private var currentTargetId: String?
@@ -49,6 +51,8 @@ public class GeofencePlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
     private let udDests = "geofence.destinations"
     private let udTargetId = "geofence.targetId"
     private let udTargetJibun = "geofence.targetJibun"
+    private let udApproachR = "geofence.approachRadius"
+    private let udArriveR = "geofence.arriveRadius"
 
     override public func load() {
         manager.delegate = self
@@ -68,6 +72,8 @@ public class GeofencePlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
                forKey: udDests)
         ud.set(currentTargetId ?? "", forKey: udTargetId)
         ud.set(currentTargetJibun, forKey: udTargetJibun)
+        ud.set(approachRadius, forKey: udApproachR)
+        ud.set(arriveRadius, forKey: udArriveR)
     }
 
     private func restoreState() {
@@ -83,6 +89,10 @@ public class GeofencePlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
         let tid = ud.string(forKey: udTargetId) ?? ""
         currentTargetId = tid.isEmpty ? nil : tid
         currentTargetJibun = ud.string(forKey: udTargetJibun) ?? ""
+        let a = ud.double(forKey: udApproachR)
+        if a > 0 { approachRadius = a }
+        let r = ud.double(forKey: udArriveR)
+        if r > 0 { arriveRadius = r }
 
         // 켜져 있던 상태로 재기동 → 위치 업데이트 재개.
         // 리전은 iOS가 앱 종료 후에도 유지하므로 monitoredRegions가 비어있을 때만
@@ -121,6 +131,8 @@ public class GeofencePlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
             let jibun = (obj["jibun"] as? String) ?? ""
             return Dest(id: id, jibun: jibun, lat: lat, lng: lng)
         }
+        if let a = call.getDouble("approachRadius"), a > 0 { approachRadius = a }
+        if let r = call.getDouble("arriveRadius"), r > 0 { arriveRadius = r }
         monitoringEnabled = true
         persistState()
         DispatchQueue.main.async {
@@ -149,8 +161,21 @@ public class GeofencePlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
         call.resolve([
             "enabled": monitoringEnabled,
             "count": destinations.count,
-            "jibun": currentTargetJibun
+            "jibun": currentTargetJibun,
+            "approachRadius": approachRadius,
+            "arriveRadius": arriveRadius
         ])
+    }
+
+    // 알림 반경 변경 (설정 슬라이더). 감시 중이면 현재 타겟 리전을 새 반경으로 재등록.
+    @objc func setRadii(_ call: CAPPluginCall) {
+        if let a = call.getDouble("approachRadius"), a > 0 { approachRadius = a }
+        if let r = call.getDouble("arriveRadius"), r > 0 { arriveRadius = r }
+        persistState()
+        if monitoringEnabled {
+            DispatchQueue.main.async { self.registerNearest() }
+        }
+        call.resolve(["ok": true, "approachRadius": approachRadius, "arriveRadius": arriveRadius])
     }
 
     // MARK: - 핵심 로직: 현재 위치에서 제일 가까운 1곳만 리전 등록
