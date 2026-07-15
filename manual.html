@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>원터치맵 사용 설명서</title>
+<style>
+  :root{
+    --purple:#5C6BC0; --purple-dark:#3F51B5; --bg:#F4F4F8; --card:#fff;
+    --text:#2B2B33; --sub:#77778A; --line:#E8E8F0; --green:#4CAF50; --red:#FF5252;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);line-height:1.7;}
+  .wrap{max-width:760px;margin:0 auto;padding:0 16px 60px;}
+  header{background:linear-gradient(135deg,var(--purple-dark),var(--purple));color:#fff;padding:36px 16px 30px;text-align:center;border-radius:0 0 24px 24px;}
+  header img.appicon{width:72px;height:72px;border-radius:18px;box-shadow:0 4px 14px rgba(0,0,0,.25);margin-bottom:12px;}
+  header h1{font-size:26px;font-weight:700;}
+  header p{opacity:.9;font-size:14px;margin-top:6px;}
+  nav.toc{background:var(--card);border-radius:14px;padding:16px 20px;margin:20px 0;box-shadow:0 2px 8px rgba(0,0,0,.05);}
+  nav.toc b{display:block;margin-bottom:8px;font-size:15px;}
+  nav.toc a{display:inline-block;margin:3px 10px 3px 0;color:var(--purple-dark);text-decoration:none;font-size:14px;background:#EEF0FB;padding:4px 10px;border-radius:14px;}
+  section{background:var(--card);border-radius:16px;padding:24px 22px;margin:18px 0;box-shadow:0 2px 8px rgba(0,0,0,.05);}
+  section h2{font-size:20px;margin-bottom:4px;color:var(--purple-dark);}
+  section .sub{font-size:13px;color:var(--sub);margin-bottom:14px;}
+  .figure{text-align:center;margin:16px 0;}
+  .figure img{max-width:100%;width:320px;border-radius:16px;border:1px solid var(--line);box-shadow:0 4px 16px rgba(0,0,0,.08);}
+  .figure figcaption{font-size:12px;color:var(--sub);margin-top:8px;}
+  ul.feat{list-style:none;}
+  ul.feat li{padding:7px 0 7px 26px;position:relative;font-size:15px;}
+  ul.feat li::before{content:"✓";position:absolute;left:4px;color:var(--green);font-weight:700;}
+  .step{display:flex;gap:12px;margin:10px 0;align-items:flex-start;}
+  .step .n{flex:0 0 26px;height:26px;background:var(--purple);color:#fff;border-radius:50%;text-align:center;line-height:26px;font-size:14px;font-weight:700;margin-top:2px;}
+  .step p{font-size:15px;}
+  .tip{background:#FFF8E1;border-left:4px solid #FFC107;border-radius:8px;padding:12px 14px;font-size:14px;margin:14px 0;}
+  .warn{background:#FDECEA;border-left:4px solid var(--red);border-radius:8px;padding:12px 14px;font-size:14px;margin:14px 0;}
+  .flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;margin:16px 0;font-size:14px;}
+  .flow .box{background:#EEF0FB;border:1px solid #D5DAF5;border-radius:10px;padding:8px 12px;text-align:center;}
+  .flow .arrow{color:var(--sub);font-weight:700;}
+  .kbd{display:inline-block;background:#EEF0FB;border:1px solid #D5DAF5;border-radius:6px;padding:1px 8px;font-size:13px;font-weight:600;color:var(--purple-dark);}
+  footer{text-align:center;color:var(--sub);font-size:12px;margin-top:30px;}
+  @media (prefers-color-scheme: dark){
+    :root{--bg:#17171D;--card:#22222B;--text:#EDEDF2;--sub:#9A9AAC;--line:#33333F;}
+    nav.toc a,.kbd,.flow .box{background:#2C2C3A;border-color:#3A3A4C;color:#AEB7EE;}
+    .tip{background:#2E2A1A;} .warn{background:#332222;}
+  }
+</style>
+</head>
+<body>
+<header>
+  <img class="appicon" src="icon-192.png" alt="원터치맵 아이콘">
+  <h1>원터치맵 사용 설명서</h1>
+  <p>배송기사님을 위한 원터치 주소 입력 · 경로 최적화 · 도착 알림 앱</p>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <b>목차</b>
+  <a href="#home">1. 주소 입력</a>
+  <a href="#ocr">2. OCR 사진 인식</a>
+  <a href="#list">3. 배송 목록</a>
+  <a href="#route">4. 최적경로</a>
+  <a href="#map">5. 지도</a>
+  <a href="#geofence">6. 도착 알림</a>
+  <a href="#radius">7. 알림 반경 설정</a>
+  <a href="#setup">8. 처음 설정 (중요)</a>
+</nav>
+
+<section id="home">
+  <h2>1. 주소 입력 — 원터치 키패드</h2>
+  <div class="sub">앱을 열면 나오는 첫 화면. 운전 중에도 한 손으로 빠르게.</div>
+  <div class="figure">
+    <img src="manual-img/01-home.png" alt="홈 화면 — 주소 입력 키패드">
+    <figcaption>홈 화면: 숫자 키패드 + 로/길/안길 원터치 키</figcaption>
+  </div>
+  <ul class="feat">
+    <li><b>주소전</b>에 번지수만 쳐도 <b>주소후</b>에 완성된 주소가 자동으로 떠요.</li>
+    <li><span class="kbd">로</span> <span class="kbd">길</span> <span class="kbd">안길</span> <span class="kbd">가길~라길</span> 키로 도로명도 원터치.</li>
+    <li>동 선택 버튼으로 지역을 고르면 그 동네 주소로 좁혀서 찾아요. <span class="kbd">전국코드</span>로 다른 지역도 검색.</li>
+    <li><span class="kbd">긴급</span> 체크 후 등록하면 목록에서 빨간 표시로 우선 표시돼요.</li>
+    <li><span class="kbd">배송등록</span> = 지금 주소를 목록에 추가, <span class="kbd">배송주소</span> = 배송 목록 화면으로 이동.</li>
+  </ul>
+</section>
+
+<section id="ocr">
+  <h2>2. OCR 사진 인식 — 송장 찍으면 주소 자동 등록</h2>
+  <div class="sub">배송 목록 화면의 <span class="kbd">OCR 인식</span> 버튼</div>
+  <div class="step"><div class="n">1</div><p>송장이나 배송 리스트 종이를 사진으로 찍거나 앨범에서 선택해요.</p></div>
+  <div class="step"><div class="n">2</div><p>주소가 있는 부분만 손가락으로 드래그해 선택하면 인식률이 확 올라가요. (전체 사용도 가능)</p></div>
+  <div class="step"><div class="n">3</div><p>스캔 결과에서 맞는 주소만 체크하고 <b>일괄 등록</b>. 빠진 건 <b>+ 직접 추가하기</b>로.</p></div>
+</section>
+
+<section id="list">
+  <h2>3. 배송 목록 — 하루 배송 관리</h2>
+  <div class="sub">홈에서 <span class="kbd">배송주소</span>를 누르면 나오는 화면</div>
+  <div class="figure">
+    <img src="manual-img/02-list.png" alt="배송 목록 화면">
+    <figcaption>배송 목록: 순번 · 동+번지 · 사진 · 전화번호 · 메모</figcaption>
+  </div>
+  <ul class="feat">
+    <li>날짜별로 목록이 나뉘어요. 상단 날짜를 눌러 다른 날 목록도 확인.</li>
+    <li>주소를 누르면 지도에서 위치를 바로 보여줘요.</li>
+    <li>📷 버튼으로 현장(문 앞) 사진 저장 — 찍어두면 📸로 바뀌어요.</li>
+    <li>전화번호·메모 입력, 톤수 배지, 긴급(빨간 테두리) 표시.</li>
+    <li><span class="kbd">지금갈곳 저장</span> — 체크한 주소만 따로 묶어 지도와 연동. <span class="kbd">해제</span>로 풀어요.</li>
+    <li>체크 후 <span class="kbd">삭제</span>로 완료한 배송지 정리.</li>
+  </ul>
+</section>
+
+<section id="route">
+  <h2>4. 🚀 최적경로 — 최단 코스로 자동 정렬</h2>
+  <div class="sub">배송 목록 오른쪽 위 <span class="kbd">🚀최적경로</span> 버튼</div>
+  <div class="step"><div class="n">1</div><p>GPS로 현재 위치를 잡아요.</p></div>
+  <div class="step"><div class="n">2</div><p>좌표 없는 주소는 자동으로 좌표를 계산해요.</p></div>
+  <div class="step"><div class="n">3</div><p>현재 위치에서 출발하는 최단 경로 순서로 목록이 다시 정렬돼요. 순번이 곧 배송 순서!</p></div>
+  <div class="tip">💡 도착 알림만 쓸 거라면 최적경로를 안 돌려도 돼요. 도착 알림을 켤 때 좌표가 자동으로 계산돼요.</div>
+</section>
+
+<section id="map">
+  <h2>5. 지도 — 배송지를 한눈에</h2>
+  <div class="sub">배송 목록의 <span class="kbd">지도</span> 버튼</div>
+  <div class="figure">
+    <img src="manual-img/03-map.png" alt="지도 화면 — 번호 마커">
+    <figcaption>번호 마커 = 배송 순서. 마커를 누르면 주소 확인</figcaption>
+  </div>
+  <ul class="feat">
+    <li>등록된 배송지가 순번 마커로 표시돼요.</li>
+    <li>최적경로를 돌린 뒤 보면 동선이 한눈에 들어와요.</li>
+  </ul>
+</section>
+
+<section id="geofence">
+  <h2>6. 📍 도착 알림 — 에어팟 음성 + 워치 알림</h2>
+  <div class="sub">배송 목록의 <span class="kbd">📍 도착알림</span> 버튼 한 번이면 끝</div>
+  <div class="flow">
+    <div class="box">알림 켜기<br><small>가장 가까운 배송지 감시</small></div>
+    <div class="arrow">→</div>
+    <div class="box">🎧 100m 접근<br><small>"다음 128 다시 46이요" 음성 예고</small></div>
+    <div class="arrow">→</div>
+    <div class="box">⌚ 20m 도착<br><small>워치·폰 알림 + 번지수 음성</small></div>
+    <div class="arrow">→</div>
+    <div class="box">자동 전환<br><small>다음 배송지 감시 시작</small></div>
+  </div>
+  <ul class="feat">
+    <li>버튼 한 번이면 등록된 배송지 전체가 대상이 돼요. 좌표가 없으면 그 자리에서 자동 계산.</li>
+    <li>항상 <b>제일 가까운 한 곳</b>을 감시하고, 도착하면 자동으로 다음 배송지로 넘어가요.</li>
+    <li>음성은 에어팟·차 스피커로 나와요. 음악이 나오는 중이면 잠깐 줄이고 말한 뒤 되돌려요.</li>
+    <li><b>앱을 꺼도, 폰을 주머니에 넣어도 계속 작동</b>해요. 앱을 재시작해도 설정이 유지돼요.</li>
+    <li>운전 집중 모드(방해금지) 중에도 도착 알림은 뚫고 나와요.</li>
+    <li>다시 누르면 꺼져요. 버튼이 초록색이면 켜진 상태.</li>
+  </ul>
+  <div class="warn">⚠️ 이 기능은 설치된 앱에서만 동작해요(웹 브라우저 불가). 위치 권한을 <b>"항상 허용"</b>으로 해야 백그라운드에서도 알림이 와요.</div>
+</section>
+
+<section id="radius">
+  <h2>7. ⚙️ 알림 반경 설정 — 울리는 거리를 내 맘대로</h2>
+  <div class="sub">배송 목록의 <span class="kbd">⚙️ 반경</span> 버튼</div>
+  <div class="figure">
+    <img src="manual-img/04-radius.png" alt="알림 반경 설정 슬라이더">
+    <figcaption>예고 음성과 도착 알림 거리를 슬라이더로 조절</figcaption>
+  </div>
+  <ul class="feat">
+    <li><b>🎧 예고 음성 (에어팟)</b>: 50~300m — 이 거리에 들어오면 다음 배송지를 음성으로 미리 알려줘요.</li>
+    <li><b>⌚ 도착 알림 (워치/폰)</b>: 10~100m — 이 거리에 들어오면 도착 알림이 울려요.</li>
+    <li>알림이 켜진 상태에서 조절하면 <b>즉시 반영</b>돼요. 껐다 켤 필요 없어요.</li>
+    <li>예고는 도착보다 항상 20m 이상 바깥으로 자동 유지돼요.</li>
+  </ul>
+  <div class="tip">💡 GPS 특성상 10~30m 오차가 있을 수 있어요. 알림이 너무 늦게 오면 도착 반경을 30~50m로 넓혀보세요.</div>
+</section>
+
+<section id="setup">
+  <h2>8. 처음 설정 — 이것만 해두면 편해요</h2>
+  <div class="step"><div class="n">1</div><p><b>위치 권한 "항상 허용"</b> — 설정 &gt; 원터치맵 &gt; 위치 &gt; <b>항상</b>. 백그라운드 도착 알림의 필수 조건이에요.</p></div>
+  <div class="step"><div class="n">2</div><p><b>알림 허용</b> — 도착알림을 처음 켤 때 묻는 알림 권한을 허용해 주세요.</p></div>
+  <div class="step"><div class="n">3</div><p><b>워치에서 바로 번지수 보기</b> — 아이폰의 Watch 앱 &gt; 알림 &gt; <b>"탭하여 전체 알림 보기" 끄기</b>. 켜져 있으면 아이콘만 뜨고 터치해야 내용이 보여요.</p></div>
+  <div class="step"><div class="n">4</div><p><b>미리보기 표시</b> — 설정 &gt; 알림 &gt; 미리보기 표시 &gt; <b>항상</b>. 잠금 화면·워치에서 번지수가 바로 보여요.</p></div>
+</section>
+
+<footer>
+  원터치맵 · 만든이 김영일 · 이 설명서는 앱 버전 1.1 기준입니다
+</footer>
+
+</div>
+</body>
+</html>
