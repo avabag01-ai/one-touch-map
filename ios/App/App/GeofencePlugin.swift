@@ -258,7 +258,12 @@ public class GeofencePlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
     private func fireNotification(jibun: String) {
         let content = UNMutableNotificationContent()
         content.title = jibun.isEmpty ? "배송지 도착" : jibun   // 번지수만 크게
+        content.body = "배송지 도착"
         content.sound = .default
+        if #available(iOS 15.0, *) {
+            // 운전/집중 모드를 뚫고 즉시 표시 (entitlements의 time-sensitive 필요)
+            content.interruptionLevel = .timeSensitive
+        }
         let req = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
         UNUserNotificationCenter.current().add(req, withCompletionHandler: nil)
     }
