@@ -18,7 +18,8 @@ public class GeofencePlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "requestGeoPermissions", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "start", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "stop", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "stop", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "status", returnType: CAPPluginReturnPromise)
     ]
 
     private let manager = CLLocationManager()
@@ -43,6 +44,12 @@ public class GeofencePlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
     private var destinations: [Dest] = []
     private var monitoringEnabled = false
 
+    // iOS가 앱을 죽였다 리전 이벤트로 재기동해도 상태가 살아있도록 UserDefaults에 저장
+    private let udEnabled = "geofence.enabled"
+    private let udDests = "geofence.destinations"
+    private let udTargetId = "geofence.targetId"
+    private let udTargetJibun = "geofence.targetJibun"
+
     override public func load() {
         manager.delegate = self
         manager.desiredAccuracy = kCLLocationAccuracyBest
@@ -51,6 +58,38 @@ public class GeofencePlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
         // ⚠ 앱이 포그라운드(화면에 떠 있는 상태)일 때 iOS는 기본적으로 알림 배너를 숨긴다.
         // 델리게이트에서 willPresent를 구현해야 앱 사용 중에도 배너가 보임.
         UNUserNotificationCenter.current().delegate = self
+        restoreState()
+    }
+
+    private func persistState() {
+        let ud = UserDefaults.standard
+        ud.set(monitoringEnabled, forKey: udEnabled)
+        ud.set(destinations.map { ["id": $0.id, "jibun": $0.jibun, "lat": $0.lat, "lng": $0.lng] as [String: Any] },
+               forKey: udDests)
+        ud.set(currentTargetId ?? "", forKey: udTargetId)
+        ud.set(currentTargetJibun, forKey: udTargetJibun)
+    }
+
+    private func restoreState() {
+        let ud = UserDefaults.standard
+        monitoringEnabled = ud.bool(forKey: udEnabled)
+        if let arr = ud.array(forKey: udDests) as? [[String: Any]] {
+            destinations = arr.compactMap { obj in
+                guard let lat = obj["lat"] as? Double, let lng = obj["lng"] as? Double else { return nil }
+                return Dest(id: (obj["id"] as? String) ?? UUID().uuidString,
+                            jibun: (obj["jibun"] as? String) ?? "", lat: lat, lng: lng)
+            }
+        }
+        let tid = ud.string(forKey: udTargetId) ?? ""
+        currentTargetId = tid.isEmpty ? nil : tid
+        currentTargetJibun = ud.string(forKey: udTargetJibun) ?? ""
+
+        // 켜져 있던 상태로 재기동 → 위치 업데이트 재개.
+        // 리전은 iOS가 앱 종료 후에도 유지하므로 monitoredRegions가 비어있을 때만
+        // didUpdateLocations 콜백에서 registerNearest()가 다시 등록한다.
+        if monitoringEnabled {
+            DispatchQueue.main.async { self.manager.startUpdatingLocation() }
+        }
     }
 
     // 앱 사용 중(포그라운드)에도 알림 배너+소리 표시
@@ -83,6 +122,7 @@ public class GeofencePlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
             return Dest(id: id, jibun: jibun, lat: lat, lng: lng)
         }
         monitoringEnabled = true
+        persistState()
         DispatchQueue.main.async {
             self.manager.startUpdatingLocation()   // 현재 위치 알아야 "제일 가까운 곳" 계산 가능
             self.registerNearest()
@@ -93,11 +133,24 @@ public class GeofencePlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
     // 감시 중단 + 모든 리전 해제
     @objc func stop(_ call: CAPPluginCall) {
         monitoringEnabled = false
+        destinations = []
+        currentTargetId = nil
+        currentTargetJibun = ""
+        persistState()
         DispatchQueue.main.async {
             for r in self.manager.monitoredRegions { self.manager.stopMonitoring(for: r) }
             self.manager.stopUpdatingLocation()
         }
         call.resolve(["ok": true])
+    }
+
+    // 현재 상태 조회 (페이지 로드 시 버튼 UI 동기화용)
+    @objc func status(_ call: CAPPluginCall) {
+        call.resolve([
+            "enabled": monitoringEnabled,
+            "count": destinations.count,
+            "jibun": currentTargetJibun
+        ])
     }
 
     // MARK: - 핵심 로직: 현재 위치에서 제일 가까운 1곳만 리전 등록
@@ -120,6 +173,7 @@ public class GeofencePlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
         currentTargetId = target.id
         currentTargetJibun = target.jibun
         approachAnnounced = false
+        persistState()   // 앱이 죽었다 깨어나도 현재 타겟을 기억
 
         // 100m(예고) + 20m(도착) 두 리전 등록
         let center = CLLocationCoordinate2D(latitude: target.lat, longitude: target.lng)
@@ -197,6 +251,7 @@ public class GeofencePlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
             destinations.remove(at: idx)
         }
         currentTargetId = nil
+        persistState()   // registerNearest가 조기 반환(목록 소진 등)해도 제거 결과는 저장
         registerNearest()
     }
 
