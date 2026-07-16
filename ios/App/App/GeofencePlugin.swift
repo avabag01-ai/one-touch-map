@@ -57,6 +57,7 @@ public class GeofencePlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
     override public func load() {
         manager.delegate = self
         manager.desiredAccuracy = kCLLocationAccuracyBest
+        manager.distanceFilter = 5   // 5m 이동마다 위치 콜백 → 실시간 거리 체크 간격
         manager.allowsBackgroundLocationUpdates = true
         manager.pausesLocationUpdatesAutomatically = false
         // ⚠ 앱이 포그라운드(화면에 떠 있는 상태)일 때 iOS는 기본적으로 알림 배너를 숨긴다.
@@ -97,8 +98,13 @@ public class GeofencePlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
         // 켜져 있던 상태로 재기동 → 위치 업데이트 재개.
         // 리전은 iOS가 앱 종료 후에도 유지하므로 monitoredRegions가 비어있을 때만
         // didUpdateLocations 콜백에서 registerNearest()가 다시 등록한다.
+        // 중요 위치 변화(SLC)는 iOS가 앱을 죽여도 이동 시 앱을 재기동시켜
+        // 실시간 거리 체크를 되살리는 보험.
         if monitoringEnabled {
-            DispatchQueue.main.async { self.manager.startUpdatingLocation() }
+            DispatchQueue.main.async {
+                self.manager.startUpdatingLocation()
+                self.manager.startMonitoringSignificantLocationChanges()
+            }
         }
     }
 
@@ -137,6 +143,7 @@ public class GeofencePlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
         persistState()
         DispatchQueue.main.async {
             self.manager.startUpdatingLocation()   // 현재 위치 알아야 "제일 가까운 곳" 계산 가능
+            self.manager.startMonitoringSignificantLocationChanges()   // 앱 사망 시 재기동 보험
             self.registerNearest()
         }
         call.resolve(["ok": true, "count": destinations.count])
@@ -152,6 +159,7 @@ public class GeofencePlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
         DispatchQueue.main.async {
             for r in self.manager.monitoredRegions { self.manager.stopMonitoring(for: r) }
             self.manager.stopUpdatingLocation()
+            self.manager.stopMonitoringSignificantLocationChanges()
         }
         call.resolve(["ok": true])
     }
@@ -220,6 +228,19 @@ public class GeofencePlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
         if monitoringEnabled && manager.monitoredRegions.isEmpty {
             registerNearest()   // 최초 위치 확보 시점에 리전 등록
         }
+        // ★ 실시간 거리 체크 (리전 감시 백업) — iOS 리전은 작은 반경에서 간헐적으로
+        // 늦거나 안 울리므로, 5m 이동마다 직접 거리를 재서 놓침을 방지한다.
+        // 알람은 handleArrival/handleApproach 내부 가드로 타겟당 1회만 울린다.
+        guard monitoringEnabled,
+              let here = locations.last, here.horizontalAccuracy >= 0,
+              let tid = currentTargetId,
+              let target = destinations.first(where: { $0.id == tid }) else { return }
+        let dist = here.distance(from: CLLocation(latitude: target.lat, longitude: target.lng))
+        if dist <= arriveRadius {
+            handleArrival()
+        } else if dist <= approachRadius {
+            handleApproach()
+        }
     }
 
     public func locationManager(_ m: CLLocationManager, didEnterRegion region: CLRegion) {
@@ -266,6 +287,17 @@ public class GeofencePlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
         let arrivedId = currentTargetId
         let arrivedJibun = currentTargetJibun
         guard !arrivedJibun.isEmpty || arrivedId != nil else { return }
+
+        // 중복/지연 이벤트 가드: 직전 도착 처리로 타겟이 다음 배송지로 바뀐 뒤
+        // 뒤늦게 온 리전 이벤트가 그 다음 배송지를 잘못 울리는 것 방지.
+        // 현재 위치가 명백히 멀면(도착반경 3배 이상, 최소 150m) 무시.
+        // 위치를 아직 모르면(앱 재기동 직후 등) 그대로 진행 — 놓치는 것보다 낫다.
+        if let aid = arrivedId,
+           let target = destinations.first(where: { $0.id == aid }),
+           let here = manager.location, here.horizontalAccuracy >= 0 {
+            let dist = here.distance(from: CLLocation(latitude: target.lat, longitude: target.lng))
+            if dist > max(arriveRadius * 3, 150) { return }
+        }
 
         fireNotification(jibun: arrivedJibun)
         speak(jibun: arrivedJibun)   // 에어팟/스피커로 번지수 음성 안내
