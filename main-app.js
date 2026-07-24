@@ -572,9 +572,15 @@ function searchAddress() {
                             verifyRoadBackToJibun(c.value, searchRegion, expect, (matched) => {
                                 // 응답 도착 전 사용자가 값을 바꿨으면 무시
                                 if (addressAfter !== c.value) return;
-                                if (matched === false) {   // 명확한 불일치만 경고 (null=판단보류는 무시)
+                                if (matched === false) {   // 명확한 불일치만 (null=판단보류는 무시)
+                                    // 틀린 신주소를 보여주지 않고 "잘못된 주소입니다"로 대체.
+                                    // 단, 좌표(lastGeoPoint)는 지번 기준이라 정확 → 지도 위치는 유지되게 after만 맞춤
+                                    addressAfter = '';
+                                    if (lastGeoPoint) lastGeoPoint.after = '';
+                                    const el = document.getElementById('addressAfter');
+                                    if (el) el.value = '⚠ 잘못된 주소입니다';
                                     setAddrWarn(true);
-                                    showToast('⚠ 역검증 불일치 — 주소 확인 필요');
+                                    showToast('⚠ 잘못된 주소 — 신주소 확인 필요');
                                 }
                             });
                         }
