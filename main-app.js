@@ -743,6 +743,9 @@ function registerDelivery() {
         if (geo) {
             deliveries[existingIndex].lat = geo.lat;
             deliveries[existingIndex].lng = geo.lng;
+            deliveries[existingIndex].geoVerified = true;   // 검색 실좌표 = 신뢰 → 지도가 재지오코딩 안 함
+        } else {
+            deliveries[existingIndex].geoVerified = false;  // 주소 바뀜 → 지도에서 지번 기준 재지오코딩
         }
         localStorage.setItem('deliveries', JSON.stringify(deliveries));
         showToast('기존 배송지가 업데이트되었습니다');
@@ -762,6 +765,7 @@ function registerDelivery() {
         if (geo) {
             delivery.lat = geo.lat;   // 변환 검색의 실좌표 → 지도가 재지오코딩 없이 정확히 표시
             delivery.lng = geo.lng;
+            delivery.geoVerified = true;
         }
 
         deliveries.push(delivery);

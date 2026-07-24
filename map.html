@@ -464,8 +464,9 @@
                     }
                 }
 
-                // 좌표 없으면 지오코딩
-                if (!lat || !lng) {
+                // 좌표 없거나, 지번 기준으로 재검증 안 된 배송지는 (재)지오코딩
+                // → 과거 도로명(신주소) 우선 지오코딩으로 잘못 저장된 좌표를 지번 기준으로 교정
+                if (!lat || !lng || !delivery.geoVerified) {
                     // 도로명 주소(fullAddress)를 우선 사용하여 정확한 위치 매칭
                     const fullAddr = delivery.fullAddress || '';
                     const roadAddr = delivery.addressAfter || '';
@@ -489,22 +490,26 @@
                         }
                     }
 
-                    // 우선순위: 도로명(신주소) > 지역+지번 > fullAddress
-                    // 도로명주소는 전국 고유하므로 가장 정확함
+                    // 우선순위: 지번(구주소) > 도로명(신주소) > fullAddress
+                    // ⚠ 지번(필지)은 VWorld가 정확한 좌표를 주지만, 도로명(신주소)은 한 지번이
+                    //    다른 건물의 관련지번으로 얽히면 수백 m 밖으로 지오코딩됨
+                    //    (예: 중화동 307-16 → 동일로126길77-4는 실제 178-27 위치, 700m 남쪽).
+                    //    따라서 지번을 먼저 지오코딩해야 마커가 제자리에 꽂힘.
+                    const hasRoadTok = (s) => s && /[로길]\s*\d|대로/.test(s);
+                    // addressBefore/After 중 로·길 없는 쪽이 지번 (입력 방향 무관하게 지번 선택)
+                    const jibunOnly = !hasRoadTok(jibunAddr) ? jibunAddr
+                        : (!hasRoadTok(roadAddr) ? roadAddr : '');
                     let address;
-                    if (roadAddr) {
-                        // 도로명주소가 있으면 그대로 사용 (전국 고유)
+                    if (jibunOnly) {
+                        if (regionPrefix) {
+                            address = regionPrefix + jibunOnly;            // "서울특별시 중랑구 " + "중화동 307-16"
+                        } else {
+                            const dongName = delivery.dong ? delivery.dong.split('\n')[0].trim() : '';
+                            address = (dongName && dongName !== '전국코드' && jibunOnly.indexOf(dongName) === -1)
+                                ? dongName + ' ' + jibunOnly : jibunOnly;
+                        }
+                    } else if (roadAddr) {
                         address = roadAddr;
-                    } else if (fullAddr && /[로길]\s*\d/.test(fullAddr)) {
-                        // fullAddress에 도로명 패턴이 있으면 우선 사용
-                        address = fullAddr;
-                    } else if (regionPrefix && jibunAddr) {
-                        // 지번주소에 시/구 컨텍스트 포함 (지방 매칭 방지)
-                        address = regionPrefix + jibunAddr;
-                    } else if (jibunAddr) {
-                        // regionPrefix 없어도 동 이름으로 보강 시도
-                        const dongName = delivery.dong ? delivery.dong.split('\n')[0].trim() : '';
-                        address = dongName ? dongName + ' ' + jibunAddr : fullAddr || jibunAddr;
                     } else {
                         address = fullAddr;
                     }
@@ -515,6 +520,7 @@
                             lng = coord.lng;
                             deliveries[originalIndex].lat = lat;
                             deliveries[originalIndex].lng = lng;
+                            deliveries[originalIndex].geoVerified = true;   // 지번 기준 좌표 확정 → 재지오코딩 안 함
                             needSave = true;
 
                             // 도로명주소 후보 수집 (다중 방향 역지오코딩)
