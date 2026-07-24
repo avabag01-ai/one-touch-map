@@ -2,6 +2,8 @@
 let addressBefore = '';
 let selectedDate = new Date().toISOString().split('T')[0];
 let addressAfter = '';
+// 최근 주소 변환에서 받은 실좌표 (등록 시 저장해 지도 재지오코딩 오류 방지)
+let lastGeoPoint = null;
 let currentField = 'before'; // 'before' or 'after'
 let selectedDong = '';
 let isUrgent = false;
@@ -191,6 +193,7 @@ function renderDongRadios() {
                 addressBefore = '';
             }
             addressAfter = '';
+            lastGeoPoint = null;
 
             currentField = 'before';
             updateFieldFocus();
@@ -405,6 +408,60 @@ function updateRoadTypeSelect() {
     }
 }
 
+// 지번 번지 추출 (문자열 끝의 "숫자" 또는 "숫자-숫자")
+function extractJibunNum(s) {
+    const m = String(s || '').trim().match(/(\d+(?:-\d+)?)\s*$/);
+    return m ? m[1] : '';
+}
+
+// 주소후 입력칸 경고 표시 토글 (역검증 불일치 시)
+function setAddrWarn(on) {
+    const el = document.getElementById('addressAfter');
+    if (el) el.classList.toggle('addr-warn', !!on);
+}
+
+// 역검증: 지번→도로명 결과의 도로명을 다시 지번으로 역조회 → 기대 지번이 그 도로명에
+// 매핑된 지번 목록에 있는지 확인. onDone(true=일치 / false=불일치 / null=판단보류)
+// (한 지번이 다른 건물의 관련지번으로 얽혀 엉뚱한 도로명이 나오는 케이스를 잡는 안전망)
+// ⚠ 이 방향(지번→도로명)만 검증. 도로명→지번은 신뢰 가능하므로 검증 안 함(거짓 경보 방지)
+// ⚠ 도로명 1개에 지번 여러 개(아파트 등)면 목록 포함 여부로 판정 → 오탐 방지
+function verifyRoadBackToJibun(roadValue, region, expectJibunNum, onDone) {
+    if (!roadValue || !expectJibunNum) { onDone(null); return; }
+    let q = roadValue;
+    if (region) {
+        const miss = [region.sido, region.gugun].filter(p => p && q.indexOf(p) === -1);
+        if (miss.length) q = miss.join(' ') + ' ' + q;
+    }
+    const cbName = 'vwVerifyCb_' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
+    const apiKey = window.__VW_KEY__ || '259F9CF5-8FAE-303B-8D16-A8F8B7B9C46D';
+    const script = document.createElement('script');
+    let done = false;
+    const finish = (val) => {
+        if (done) return; done = true;
+        delete window[cbName];
+        if (script.parentNode) script.parentNode.removeChild(script);
+        onDone(val);
+    };
+    window[cbName] = function (data) {
+        try {
+            const items = ((((data || {}).response || {}).result) || {}).items || [];
+            // 이 도로명이 매핑되는 모든 지번 수집 (아파트·대형필지는 도로명 1개에 지번 여러 개)
+            // ⚠ ROAD 검색의 parcel은 시/도 접두어 없이 "중화동 178-27" 형태 → 동 이름으로 필터
+            const nums = items
+                .filter(x => !(region && region.dong) || (((x.address || {}).parcel) || '').indexOf(region.dong) !== -1)
+                .map(x => extractJibunNum(((x.address || {}).parcel) || ''))
+                .filter(Boolean);
+            if (!nums.length) { finish(null); return; }       // 역조회 실패 → 판단 보류
+            finish(nums.indexOf(expectJibunNum) !== -1);        // 기대 지번이 목록에 있으면 일치(true)
+        } catch (e) { finish(null); }
+    };
+    script.onerror = () => finish(null);
+    setTimeout(() => finish(null), 5000);
+    // size=100: 도로명 하나에 걸린 지번을 최대한 다 받아 오탐 방지
+    script.src = `https://api.vworld.kr/req/search?service=search&request=search&version=2.0&crs=epsg:4326&query=${encodeURIComponent(q)}&type=ADDRESS&category=ROAD&format=json&errorformat=json&size=100&key=${apiKey}&callback=${cbName}`;
+    document.body.appendChild(script);
+}
+
 // 주소 검색 (주소전 → 주소후 변환) - JSONP 방식
 // 주소전에 입력된 값을 자동 판별 (도로명/지번) 후 반대를 주소후에 표시
 function searchAddress() {
@@ -413,6 +470,7 @@ function searchAddress() {
         showToast('주소를 입력하세요');
         return;
     }
+    setAddrWarn(false);   // 새 검색 시작 시 이전 경고 해제
 
     // 도로명인지 지번인지 자동 판별
     // 도로명: ~로, ~길, ~대로 포함
@@ -449,43 +507,86 @@ function searchAddress() {
             if (items && items.length > 0) {
                 // 선택 지역으로 결과 스코프: 구/군 일치 우선 → 시/도 일치 → 그 외 거절
                 // (VWorld 도로명 검색이 지역 토큰을 무시하고 전국 매칭하므로 결과 필터가 필수)
-                let item;
+                let scoped;
                 if (searchRegion && searchRegion.sido) {
                     const hay = (it) => {
                         const a = it.address || {};
                         return (a.road || '') + ' ' + (a.parcel || '');
                     };
-                    item = (searchRegion.gugun &&
-                        items.find(it => hay(it).indexOf(searchRegion.sido) !== -1 && hay(it).indexOf(searchRegion.gugun) !== -1))
-                        || items.find(it => hay(it).indexOf(searchRegion.sido) !== -1)
-                        || null;   // 시/도 밖 결과뿐이면 거절 (엉뚱한 지역 방지)
+                    scoped = searchRegion.gugun
+                        ? items.filter(it => hay(it).indexOf(searchRegion.sido) !== -1 && hay(it).indexOf(searchRegion.gugun) !== -1)
+                        : [];
+                    if (!scoped.length) scoped = items.filter(it => hay(it).indexOf(searchRegion.sido) !== -1);
+                    // 시/도 밖 결과뿐이면 거절 (엉뚱한 지역 방지)
                 } else {
-                    item = items[0];   // 전국코드 모드: 스코프 없음
+                    scoped = items;   // 전국코드 모드: 스코프 없음
                 }
 
-                if (!item) {
+                if (!scoped.length) {
                     showToast(`⚠ ${searchRegion.gugun || searchRegion.sido}에서 못 찾음 (도로명 확인)`);
-                } else if (isRoad) {
-                    // 도로명 입력 → 지번(구주소) 결과를 주소후에
-                    if (item.address && item.address.parcel) {
-                        addressAfter = item.address.parcel;
-                        updateDisplay();
-                        showToast('변환 완료 (구주소)');
-                    } else if (item.address && item.address.jibun) {
-                        addressAfter = item.address.jibun;
-                        updateDisplay();
-                        showToast('변환 완료 (구주소)');
-                    } else {
-                        showToast('⚠ 없는 주소입니다');
-                    }
                 } else {
-                    // 지번 입력 → 도로명(신주소) 결과를 주소후에
-                    if (item.address && item.address.road) {
-                        addressAfter = item.address.road;
+                    // 변환 대상 필드 추출 (도로명 입력→지번, 지번 입력→도로명)
+                    const pickValue = (it) => {
+                        const a = it.address || {};
+                        return isRoad ? (a.parcel || a.jibun || '') : (a.road || '');
+                    };
+                    const pickNote = (it) => {
+                        const a = it.address || {};
+                        let n = isRoad ? (a.road || '') : (a.parcel || a.jibun || '');
+                        // 시/도·구/군 접두어 제거해 짧게 (동 이름은 남김)
+                        if (searchRegion) {
+                            [searchRegion.sido, searchRegion.gugun].forEach(tk => { if (tk) n = n.split(tk).join(''); });
+                        }
+                        return n.replace(/\s+/g, ' ').trim();
+                    };
+                    // 같은 값은 하나로 (예: 아파트 단지 — 여러 필지가 같은 도로명)
+                    const seen = {};
+                    const cands = [];
+                    scoped.forEach(it => {
+                        const v = pickValue(it);
+                        if (v && !seen[v]) {
+                            seen[v] = 1;
+                            const pt = it.point || {};
+                            // srcJibun: 이 결과가 매칭됐다고 주장하는 지번 (역검증 기준값)
+                            // → 원본 입력이 아니라 결과 자신의 지번으로 검증해 본번검색 오탐 방지
+                            const srcJibun = extractJibunNum((it.address || {}).parcel || (it.address || {}).jibun || '');
+                            cands.push({ value: v, note: pickNote(it), srcJibun: srcJibun, lat: parseFloat(pt.y), lng: parseFloat(pt.x) });
+                        }
+                    });
+
+                    const applyResult = (c) => {
+                        addressAfter = c.value;
                         updateDisplay();
-                        showToast('변환 완료 (신주소)');
-                    } else {
+                        // 검색이 준 실좌표 저장 → 등록 시 함께 저장 (지도 마커가 문자열 재지오코딩 없이 정확히 꽂힘)
+                        if (c.lat && c.lng) {
+                            lastGeoPoint = { lat: c.lat, lng: c.lng, before: addressBefore, after: addressAfter };
+                        } else {
+                            lastGeoPoint = null;
+                        }
+                        showToast(isRoad ? '변환 완료 (구주소)' : '변환 완료 (신주소)');
+                        // 지번→도로명 방향만 역검증 (신주소→구주소는 신뢰 가능하므로 생략)
+                        setAddrWarn(false);
+                        if (!isRoad) {
+                            // 결과 자신의 지번을 기준으로 검증 (본번만 검색 시 오탐 방지). 없으면 입력값으로 폴백
+                            const expect = c.srcJibun || extractJibunNum(input);
+                            verifyRoadBackToJibun(c.value, searchRegion, expect, (matched) => {
+                                // 응답 도착 전 사용자가 값을 바꿨으면 무시
+                                if (addressAfter !== c.value) return;
+                                if (matched === false) {   // 명확한 불일치만 경고 (null=판단보류는 무시)
+                                    setAddrWarn(true);
+                                    showToast('⚠ 역검증 불일치 — 주소 확인 필요');
+                                }
+                            });
+                        }
+                    };
+
+                    if (!cands.length) {
                         showToast('⚠ 없는 주소입니다');
+                    } else if (cands.length === 1) {
+                        applyResult(cands[0]);
+                    } else {
+                        // 한 지번에 신주소가 여러 개(또는 부분 일치 다수) → 번호 선택창
+                        showAddressChoiceModal(cands, applyResult);
                     }
                 }
             } else {
@@ -503,7 +604,7 @@ function searchAddress() {
     // VWorld Search API 사용 (API 키는 config.js에서 관리)
     const script = document.createElement('script');
     const apiKey = window.__VW_KEY__ || '259F9CF5-8FAE-303B-8D16-A8F8B7B9C46D';
-    script.src = `https://api.vworld.kr/req/search?service=search&request=search&version=2.0&crs=epsg:4326&query=${encodeURIComponent(queryAddress)}&type=ADDRESS&category=${searchCategory}&format=json&errorformat=json&key=${apiKey}&callback=${callbackName}`;
+    script.src = `https://api.vworld.kr/req/search?service=search&request=search&version=2.0&crs=epsg:4326&query=${encodeURIComponent(queryAddress)}&type=ADDRESS&category=${searchCategory}&format=json&errorformat=json&size=100&key=${apiKey}&callback=${callbackName}`;
 
     // 에러 처리
     script.onerror = function () {
@@ -526,6 +627,54 @@ function searchAddress() {
     }, 5000);
 
     document.body.appendChild(script);
+}
+
+// 주소 후보가 여러 개일 때 번호로 선택하는 창
+// (한 지번에 신주소가 여러 개 등록된 경우, 부분 입력으로 후보 다수인 경우)
+function showAddressChoiceModal(cands, onPick) {
+    let modal = document.getElementById('addrChoiceModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'addrChoiceModal';
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal-content addr-choice-modal">
+                <div class="modal-header">
+                    <h3 id="addrChoiceTitle">주소 선택</h3>
+                    <button id="addrChoiceCloseBtn" class="btn-close">✕</button>
+                </div>
+                <div id="addrChoiceBody" class="addr-choice-body"></div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        modal.querySelector('#addrChoiceCloseBtn').addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+        // 바깥 영역 탭으로도 닫기
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.style.display = 'none';
+        });
+    }
+
+    modal.querySelector('#addrChoiceTitle').textContent = `주소 선택 (${cands.length}건)`;
+    const body = modal.querySelector('#addrChoiceBody');
+    body.innerHTML = '';
+    cands.forEach((c, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'addr-choice-btn';
+        btn.innerHTML = `<span class="addr-choice-num">${i + 1}</span>` +
+            `<span class="addr-choice-text">${c.value}` +
+            (c.note ? `<small class="addr-choice-note">${c.note}</small>` : '') +
+            `</span>`;
+        btn.addEventListener('click', () => {
+            modal.style.display = 'none';
+            onPick(c);
+        });
+        body.appendChild(btn);
+    });
+
+    modal.style.display = 'flex';
+    body.scrollTop = 0;
 }
 
 // 동 이름에 시/구 정보 보장 (없으면 national-regions에서 자동 검색하여 붙임)
@@ -578,6 +727,10 @@ function registerDelivery() {
     // localStorage 불러오기
     let deliveries = JSON.parse(localStorage.getItem('deliveries') || '[]');
 
+    // 변환 때 받아둔 실좌표가 아직 이 주소쌍의 것인지 확인 (변환 후 주소를 고쳤으면 폐기)
+    const geo = (lastGeoPoint && lastGeoPoint.before === addressBefore && lastGeoPoint.after === addressAfter)
+        ? lastGeoPoint : null;
+
     // 중복 확인 (같은 지번 주소가 있는지)
     const existingIndex = deliveries.findIndex(d => d.addressBefore === finalAddressBefore);
 
@@ -587,6 +740,10 @@ function registerDelivery() {
         deliveries[existingIndex].fullAddress = fullAddress;
         deliveries[existingIndex].dong = dongWithRegion;
         deliveries[existingIndex].priority = isUrgent ? 'urgent' : 'normal';
+        if (geo) {
+            deliveries[existingIndex].lat = geo.lat;
+            deliveries[existingIndex].lng = geo.lng;
+        }
         localStorage.setItem('deliveries', JSON.stringify(deliveries));
         showToast('기존 배송지가 업데이트되었습니다');
     } else {
@@ -602,6 +759,10 @@ function registerDelivery() {
             layer: 0,
             createdAt: selectedDate
         };
+        if (geo) {
+            delivery.lat = geo.lat;   // 변환 검색의 실좌표 → 지도가 재지오코딩 없이 정확히 표시
+            delivery.lng = geo.lng;
+        }
 
         deliveries.push(delivery);
         localStorage.setItem('deliveries', JSON.stringify(deliveries));
@@ -613,6 +774,7 @@ function registerDelivery() {
     // 입력 초기화
     addressBefore = '';
     addressAfter = '';
+    lastGeoPoint = null;
     updateDisplay();
 }
 
@@ -753,6 +915,7 @@ function selectGugun(gugun) {
     // 주소 초기화
     addressBefore = '';
     addressAfter = '';
+    lastGeoPoint = null;
     currentField = 'before';
 
     // UI 업데이트

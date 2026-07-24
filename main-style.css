@@ -1145,6 +1145,86 @@ html[data-theme="rose"] body {
     align-content: start;
 }
 
+/* 역검증 불일치 경고: 주소후 입력칸 강조 */
+.address-input.addr-warn {
+    border-color: #e05353 !important;
+    background: rgba(224, 83, 83, 0.07) !important;
+    color: #c0392b;
+}
+
+/* === 주소 후보 번호 선택창 === */
+.addr-choice-modal {
+    max-width: 440px;
+    width: 92%;
+    max-height: 75vh;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+}
+
+.addr-choice-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.addr-choice-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 12px 14px;
+    background: var(--theme-key-bg);
+    border: 2px solid var(--theme-border);
+    border-radius: 10px;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.15s;
+}
+
+.addr-choice-btn:active {
+    background: var(--theme-primary);
+    border-color: var(--theme-primary);
+}
+
+.addr-choice-btn:active .addr-choice-text,
+.addr-choice-btn:active .addr-choice-note {
+    color: white;
+}
+
+.addr-choice-num {
+    flex: none;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--theme-primary);
+    color: white;
+    font-size: 15px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.addr-choice-text {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--theme-text);
+    display: flex;
+    flex-direction: column;
+    line-height: 1.3;
+}
+
+.addr-choice-note {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--theme-text-sub);
+    margin-top: 2px;
+}
+
 .region-btn {
     padding: 15px 10px;
     background: var(--theme-key-bg);
