@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>One-Touch Map Structure</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        body { margin: 0; padding: 20px; font-family: sans-serif; background: #f4f4f4; }
+        .container { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: #333; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🗺️ 원터치맵 프로젝트 구조</h1>
+        <div class="mermaid">
+mindmap
+  root((One-Touch Map))
+    Frontend Pages
+      index.html<br/>(메인: 주소입력/OCR)
+      map.html<br/>(지도/GPS트래킹)
+      list.html<br/>(배송목록/경로최적화)
+      settings.html<br/>(설정)
+    Core Logic
+      main-app.js<br/>(메인 로직)
+      ocr-app.js<br/>(OCR 처리)
+      list-app.js<br/>(목록 관리)
+      route-optimizer.js<br/>(경로 최적화)
+      anchor-system.js<br/>(데이터 동기화)
+    Data & Config
+      national-regions.js<br/>(주소 데이터)
+      manifest.json<br/>(PWA 설정)
+      service-worker.js<br/>(오프라인 지원)
+    Tools
+      fix_map.py<br/>(지도 고속화 패치)
+      convert-icon.js<br/>(아이콘 생성)
+    Styles
+      main-style.css
+      list-style.css
+        </div>
+    </div>
+    <script>
+        mermaid.initialize({ startOnLoad: true, theme: 'default' });
+    </script>
+</body>
+</html>

@@ -1,0 +1,1446 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Omega Code Atlas: One-Touch Map</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a0a0f;
+            color: #e0e0e0;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            overflow: hidden;
+        }
+
+        #tree {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .node {
+            cursor: pointer;
+            pointer-events: all;
+        }
+
+        .node .icon {
+            pointer-events: all;
+        }
+
+        .node .hitarea {
+            fill: transparent;
+            pointer-events: all;
+            cursor: pointer;
+        }
+
+        .node text {
+            font-size: 11px;
+            fill: #ccc;
+        }
+
+        .node .file-label {
+            font-size: 9px;
+            fill: #666;
+            pointer-events: none;
+        }
+
+        .link {
+            fill: none;
+            stroke-opacity: 0.4;
+            stroke-width: 1.5px;
+        }
+
+        .tooltip {
+            position: absolute;
+            background: rgba(20, 20, 30, 0.95);
+            padding: 8px 12px;
+            border: 1px solid #6c5ce7;
+            border-radius: 6px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s;
+            font-size: 12px;
+            z-index: 100;
+            box-shadow: 0 4px 15px rgba(108, 92, 231, 0.3);
+        }
+
+        #controls {
+            position: fixed;
+            top: 12px;
+            left: 12px;
+            z-index: 50;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        #controls button {
+            background: #1a1a2e;
+            border: 1px solid #333;
+            color: #aaa;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        #controls button:hover {
+            background: #6c5ce7;
+            color: #fff;
+            border-color: #6c5ce7;
+        }
+
+        #searchBox {
+            background: #1a1a2e;
+            border: 1px solid #333;
+            color: #eee;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            width: 200px;
+            font-family: inherit;
+            outline: none;
+        }
+
+        #searchBox:focus {
+            border-color: #6c5ce7;
+        }
+
+        #searchCount {
+            font-size: 11px;
+            color: #6c5ce7;
+            margin-left: 4px;
+        }
+
+        #title {
+            position: fixed;
+            top: 12px;
+            right: 16px;
+            z-index: 50;
+            font-size: 14px;
+            color: #6c5ce7;
+            font-weight: bold;
+        }
+
+        #stats {
+            position: fixed;
+            bottom: 12px;
+            left: 16px;
+            z-index: 50;
+            font-size: 11px;
+            color: #555;
+        }
+
+        #codePanel {
+            position: fixed;
+            right: 0;
+            top: 0;
+            width: 420px;
+            height: 100vh;
+            background: rgba(10, 10, 20, 0.97);
+            border-left: 2px solid #6c5ce7;
+            z-index: 200;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #codePanel.open {
+            transform: translateX(0);
+        }
+
+        #codePanelHeader {
+            padding: 12px 16px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #codePanelHeader .title {
+            font-size: 13px;
+            color: #6c5ce7;
+            font-weight: bold;
+        }
+
+        #codePanelHeader .file {
+            font-size: 11px;
+            color: #00b894;
+        }
+
+        #codePanelHeader .close {
+            cursor: pointer;
+            color: #666;
+            font-size: 18px;
+            padding: 0 4px;
+        }
+
+        #codePanelHeader .close:hover {
+            color: #e17055;
+        }
+
+        #codeContent {
+            flex: 1;
+            padding: 12px 16px;
+            overflow: auto;
+            font-size: 12px;
+            line-height: 1.6;
+            white-space: pre;
+            color: #ddd;
+            tab-size: 4;
+        }
+
+        @keyframes glowPulse {
+
+            0%,
+            100% {
+                filter: drop-shadow(0 0 3px currentColor);
+                opacity: 1;
+            }
+
+            50% {
+                filter: drop-shadow(0 0 12px currentColor) drop-shadow(0 0 20px currentColor);
+                opacity: 0.8;
+            }
+        }
+
+        .search-highlight {
+            animation: glowPulse 1s ease-in-out infinite;
+        }
+
+        #legend {
+            position: fixed;
+            bottom: 12px;
+            right: 16px;
+            z-index: 50;
+            display: flex;
+            gap: 12px;
+            font-size: 10px;
+            color: #666;
+        }
+
+        #legend span {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+
+        #legend .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 2px;
+            display: inline-block;
+        }
+    </style>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+
+<body>
+    <div id="controls">
+        <button onclick="expandAll()">Expand All</button>
+        <button onclick="collapseAll()">Collapse All</button>
+        <button onclick="resetZoom()">Reset View</button>
+        <input type="text" id="searchBox" placeholder="Search nodes..." oninput="searchNodes(this.value)">
+        <span id="searchCount"></span>
+    </div>
+    <div id="title">Omega Code Atlas</div>
+    <div id="tree"></div>
+    <div class="tooltip" id="tooltip"></div>
+    <div id="stats"></div>
+    <div id="legend">
+        <span><span class="dot" style="background:#6c5ce7"></span> Folder</span>
+        <span><span class="dot" style="background:#00b894"></span> File</span>
+        <span><span class="dot" style="background:#e17055"></span> Class</span>
+        <span><span class="dot" style="background:#0984e3"></span> Function</span>
+        <span><span class="dot" style="background:#fdcb6e"></span> Route</span>
+    </div>
+    <div id="codePanel">
+        <div id="codePanelHeader">
+            <div>
+                <div class="title" id="codeName">-</div>
+                <div class="file" id="codeFile">-</div>
+            </div>
+            <div class="close" onclick="closeCodePanel()">&times;</div>
+        </div>
+        <pre id="codeContent"></pre>
+    </div>
+    <script id="treeDataScript">
+        // Placeholder for injected data
+        const treeData = {
+  "name": "one-touch-map",
+  "children": [
+    {
+      "name": "Frontend",
+      "type": "Folder",
+      "children": [
+        {
+          "name": "index.html",
+          "type": "File (HTML)",
+          "file": "index.html",
+          "children": [
+            {
+              "name": "#cameraInput",
+              "type": "Element ID",
+              "line": 35,
+              "file": "index.html",
+              "snippet": "<input type=\"file\" id=\"cameraInput\" accept=\"image/*\" capture=\"environment\" style=\"display: none;\">"
+            },
+            {
+              "name": "#fileInput",
+              "type": "Element ID",
+              "line": 36,
+              "file": "index.html",
+              "snippet": "<input type=\"file\" id=\"fileInput\" accept=\"image/*\" style=\"display: none;\">"
+            },
+            {
+              "name": "#addressBefore",
+              "type": "Element ID",
+              "line": 43,
+              "file": "index.html",
+              "snippet": "<input type=\"text\" id=\"addressBefore\" class=\"address-input\" placeholder=\"구주소 또는 신주소 입력\">"
+            },
+            {
+              "name": "#addressAfter",
+              "type": "Element ID",
+              "line": 47,
+              "file": "index.html",
+              "snippet": "<input type=\"text\" id=\"addressAfter\" class=\"address-input\" placeholder=\"변환 결과\" readonly>"
+            },
+            {
+              "name": "#registerBtn",
+              "type": "Element ID",
+              "line": 77,
+              "file": "index.html",
+              "snippet": "<button class=\"key-action big-btn\" id=\"registerBtn\">배송등록</button>"
+            },
+            {
+              "name": "#listBtn",
+              "type": "Element ID",
+              "line": 78,
+              "file": "index.html",
+              "snippet": "<button class=\"key-action big-btn\" id=\"listBtn\" onclick=\"location.href='list.html'\">배송주소</button>"
+            },
+            {
+              "name": "#urgentMode",
+              "type": "Element ID",
+              "line": 95,
+              "file": "index.html",
+              "snippet": "<input type=\"checkbox\" id=\"urgentMode\">"
+            },
+            {
+              "name": "#dongRadios",
+              "type": "Element ID",
+              "line": 98,
+              "file": "index.html",
+              "snippet": "<div id=\"dongRadios\" style=\"display: flex; gap: 8px; overflow-x: auto;\">"
+            },
+            {
+              "name": "#fileBtn",
+              "type": "Element ID",
+              "line": 107,
+              "file": "index.html",
+              "snippet": "<button class=\"action-btn btn-camera\" id=\"fileBtn\">촬영</button>"
+            },
+            {
+              "name": "#quickSelect",
+              "type": "Element ID",
+              "line": 112,
+              "file": "index.html",
+              "snippet": "<div class=\"quick-select\" id=\"quickSelect\">"
+            },
+            {
+              "name": "#messageBox",
+              "type": "Element ID",
+              "line": 116,
+              "file": "index.html",
+              "snippet": "<div class=\"toast\" id=\"messageBox\"></div>"
+            },
+            {
+              "name": "#ocrModal",
+              "type": "Element ID",
+              "line": 119,
+              "file": "index.html",
+              "snippet": "<div id=\"ocrModal\" class=\"modal-overlay\" style=\"display: none;\">"
+            },
+            {
+              "name": "#scannedList",
+              "type": "Element ID",
+              "line": 124,
+              "file": "index.html",
+              "snippet": "<div id=\"scannedList\" class=\"scanned-list\">"
+            },
+            {
+              "name": "#addManualBtn",
+              "type": "Element ID",
+              "line": 128,
+              "file": "index.html",
+              "snippet": "<button id=\"addManualBtn\" class=\"btn-add-manual\">+ 직접 추가하기</button>"
+            },
+            {
+              "name": "#cancelScanBtn",
+              "type": "Element ID",
+              "line": 131,
+              "file": "index.html",
+              "snippet": "<button id=\"cancelScanBtn\" class=\"btn-cancel\">취소</button>"
+            },
+            {
+              "name": "#confirmScanBtn",
+              "type": "Element ID",
+              "line": 132,
+              "file": "index.html",
+              "snippet": "<button id=\"confirmScanBtn\" class=\"btn-confirm\">일괄 등록</button>"
+            }
+          ]
+        },
+        {
+          "name": "map.html",
+          "type": "File (HTML)",
+          "file": "map.html",
+          "children": [
+            {
+              "name": "#headerTitle",
+              "type": "Element ID",
+              "line": 240,
+              "file": "map.html",
+              "snippet": "<span id=\"headerTitle\" style=\"display:none;\"></span>"
+            },
+            {
+              "name": "#layerToggleBtn",
+              "type": "Element ID",
+              "line": 243,
+              "file": "map.html",
+              "snippet": "<button class=\"layer-toggle-btn\" id=\"layerToggleBtn\">L 필터</button>"
+            },
+            {
+              "name": "#layerFilter",
+              "type": "Element ID",
+              "line": 246,
+              "file": "map.html",
+              "snippet": "<div class=\"layer-filter\" id=\"layerFilter\">"
+            },
+            {
+              "name": "#map",
+              "type": "Element ID",
+              "line": 258,
+              "file": "map.html",
+              "snippet": "<div id=\"map\" style=\"position: absolute; top: 0; bottom: 0; width: 100%; height: 100vh;\"></div>"
+            },
+            {
+              "name": "#locationBtn",
+              "type": "Element ID",
+              "line": 261,
+              "file": "map.html",
+              "snippet": "<button class=\"location-btn\" id=\"locationBtn\">📍</button>"
+            }
+          ]
+        },
+        {
+          "name": "list.html",
+          "type": "File (HTML)",
+          "file": "list.html",
+          "children": [
+            {
+              "name": "#totalCount",
+              "type": "Element ID",
+              "line": 18,
+              "file": "list.html",
+              "snippet": "<span class=\"header-title\">배송 목록 (<span id=\"totalCount\">0</span>)</span>"
+            },
+            {
+              "name": "#optimizeBtn",
+              "type": "Element ID",
+              "line": 21,
+              "file": "list.html",
+              "snippet": "id=\"optimizeBtn\">🚀최적경로</button>"
+            },
+            {
+              "name": "#deleteBtn",
+              "type": "Element ID",
+              "line": 29,
+              "file": "list.html",
+              "snippet": "<button class=\"action-btn\" id=\"deleteBtn\">"
+            },
+            {
+              "name": "#urgentBtn",
+              "type": "Element ID",
+              "line": 32,
+              "file": "list.html",
+              "snippet": "<button class=\"action-btn\" id=\"urgentBtn\">"
+            },
+            {
+              "name": "#carryoverBtn",
+              "type": "Element ID",
+              "line": 35,
+              "file": "list.html",
+              "snippet": "<button class=\"action-btn\" id=\"carryoverBtn\">"
+            },
+            {
+              "name": "#selectAll",
+              "type": "Element ID",
+              "line": 59,
+              "file": "list.html",
+              "snippet": "<input type=\"checkbox\" id=\"selectAll\">"
+            },
+            {
+              "name": "#totalCount",
+              "type": "Element ID",
+              "line": 60,
+              "file": "list.html",
+              "snippet": "<span>전체선택 (<span id=\"totalCount\">0</span>건)</span>"
+            },
+            {
+              "name": "#currentDate",
+              "type": "Element ID",
+              "line": 63,
+              "file": "list.html",
+              "snippet": "<div class=\"date\" id=\"currentDate\" style=\"cursor:pointer; color:#3F51B5; font-weight:bold;\"></div>"
+            },
+            {
+              "name": "#datePicker",
+              "type": "Element ID",
+              "line": 64,
+              "file": "list.html",
+              "snippet": "<input type=\"date\" id=\"datePicker\" style=\"display:none;\">"
+            },
+            {
+              "name": "#deliveryItems",
+              "type": "Element ID",
+              "line": 71,
+              "file": "list.html",
+              "snippet": "<div id=\"deliveryItems\">"
+            }
+          ]
+        },
+        {
+          "name": "settings.html",
+          "type": "File (HTML)",
+          "file": "settings.html",
+          "children": [
+            {
+              "name": "#deliveryCount",
+              "type": "Element ID",
+              "line": 19,
+              "file": "settings.html",
+              "snippet": "<div class=\"header-title\">기본사항설정등록 ( <span id=\"deliveryCount\">0</span>/720 )</div>"
+            },
+            {
+              "name": "#saveBtn",
+              "type": "Element ID",
+              "line": 24,
+              "file": "settings.html",
+              "snippet": "<button class=\"main-tab active\" data-tab=\"dong\" id=\"saveBtn\">저 장</button>"
+            },
+            {
+              "name": "#userName",
+              "type": "Element ID",
+              "line": 42,
+              "file": "settings.html",
+              "snippet": "<input type=\"text\" id=\"userName\" value=\"도도\">"
+            },
+            {
+              "name": "#password",
+              "type": "Element ID",
+              "line": 46,
+              "file": "settings.html",
+              "snippet": "<input type=\"password\" id=\"password\" value=\"0000\">"
+            },
+            {
+              "name": "#mapSize",
+              "type": "Element ID",
+              "line": 54,
+              "file": "settings.html",
+              "snippet": "<input type=\"number\" id=\"mapSize\" value=\"3\">"
+            },
+            {
+              "name": "#approvalNum",
+              "type": "Element ID",
+              "line": 58,
+              "file": "settings.html",
+              "snippet": "<input type=\"text\" id=\"approvalNum\" value=\"미승인\" readonly>"
+            },
+            {
+              "name": "#dong1",
+              "type": "Element ID",
+              "line": 66,
+              "file": "settings.html",
+              "snippet": "<input type=\"text\" id=\"dong1\" value=\"전국코드\">"
+            },
+            {
+              "name": "#dong2",
+              "type": "Element ID",
+              "line": 70,
+              "file": "settings.html",
+              "snippet": "<input type=\"text\" id=\"dong2\" value=\"중화동 서울특별시 중랑구\">"
+            },
+            {
+              "name": "#dong3",
+              "type": "Element ID",
+              "line": 77,
+              "file": "settings.html",
+              "snippet": "<input type=\"text\" id=\"dong3\" value=\"묵동\">"
+            },
+            {
+              "name": "#dong4",
+              "type": "Element ID",
+              "line": 81,
+              "file": "settings.html",
+              "snippet": "<input type=\"text\" id=\"dong4\" value=\"망우동\">"
+            },
+            {
+              "name": "#dong5",
+              "type": "Element ID",
+              "line": 88,
+              "file": "settings.html",
+              "snippet": "<input type=\"text\" id=\"dong5\" value=\"신내동\">"
+            },
+            {
+              "name": "#dong6",
+              "type": "Element ID",
+              "line": 92,
+              "file": "settings.html",
+              "snippet": "<input type=\"text\" id=\"dong6\">"
+            },
+            {
+              "name": "#dong7",
+              "type": "Element ID",
+              "line": 99,
+              "file": "settings.html",
+              "snippet": "<input type=\"text\" id=\"dong7\">"
+            },
+            {
+              "name": "#dong8",
+              "type": "Element ID",
+              "line": 103,
+              "file": "settings.html",
+              "snippet": "<input type=\"text\" id=\"dong8\">"
+            },
+            {
+              "name": "#dong9",
+              "type": "Element ID",
+              "line": 110,
+              "file": "settings.html",
+              "snippet": "<input type=\"text\" id=\"dong9\">"
+            },
+            {
+              "name": "#dong10",
+              "type": "Element ID",
+              "line": 114,
+              "file": "settings.html",
+              "snippet": "<input type=\"text\" id=\"dong10\">"
+            },
+            {
+              "name": "#road1",
+              "type": "Element ID",
+              "line": 122,
+              "file": "settings.html",
+              "snippet": "<input type=\"text\" id=\"road1\" value=\"ex : 안길\">"
+            },
+            {
+              "name": "#road2",
+              "type": "Element ID",
+              "line": 126,
+              "file": "settings.html",
+              "snippet": "<input type=\"text\" id=\"road2\" value=\"번길\">"
+            },
+            {
+              "name": "#road3",
+              "type": "Element ID",
+              "line": 133,
+              "file": "settings.html",
+              "snippet": "<input type=\"text\" id=\"road3\" value=\"가길\">"
+            },
+            {
+              "name": "#road4",
+              "type": "Element ID",
+              "line": 137,
+              "file": "settings.html",
+              "snippet": "<input type=\"text\" id=\"road4\" value=\"나길\">"
+            },
+            {
+              "name": "#road5",
+              "type": "Element ID",
+              "line": 144,
+              "file": "settings.html",
+              "snippet": "<input type=\"text\" id=\"road5\" value=\"다길\">"
+            },
+            {
+              "name": "#googleMapsKey",
+              "type": "Element ID",
+              "line": 153,
+              "file": "settings.html",
+              "snippet": "<input type=\"text\" id=\"googleMapsKey\" placeholder=\"Google Maps API 키 입력\" style=\"width: 100%;\">"
+            }
+          ]
+        },
+        {
+          "name": "gpstest.html",
+          "type": "File (HTML)",
+          "file": "gpstest.html",
+          "children": [
+            {
+              "name": "#map",
+              "type": "Element ID",
+              "line": 90,
+              "file": "gpstest.html",
+              "snippet": "<div id=\"map\"></div>"
+            },
+            {
+              "name": "#my-loc-btn",
+              "type": "Element ID",
+              "line": 91,
+              "file": "gpstest.html",
+              "snippet": "<button id=\"my-loc-btn\">📍</button>"
+            }
+          ]
+        },
+        {
+          "name": "main-style.css",
+          "type": "File",
+          "file": "main-style.css",
+          "children": []
+        },
+        {
+          "name": "list-style.css",
+          "type": "File",
+          "file": "list-style.css",
+          "children": []
+        },
+        {
+          "name": "settings-style.css",
+          "type": "File",
+          "file": "settings-style.css",
+          "children": []
+        }
+      ]
+    },
+    {
+      "name": "Core Logic",
+      "type": "Folder",
+      "children": [
+        {
+          "name": "main-app.js",
+          "type": "File (JS)",
+          "file": "main-app.js",
+          "children": [
+            {
+              "name": "loadSettings",
+              "type": "Function",
+              "line": 28,
+              "file": "main-app.js",
+              "snippet": "function loadSettings() {"
+            },
+            {
+              "name": "setupEventListeners",
+              "type": "Function",
+              "line": 57,
+              "file": "main-app.js",
+              "snippet": "function setupEventListeners() {"
+            },
+            {
+              "name": "handleKeyInput",
+              "type": "Function",
+              "line": 106,
+              "file": "main-app.js",
+              "snippet": "function handleKeyInput(value) {"
+            },
+            {
+              "name": "updateDisplay",
+              "type": "Function",
+              "line": 117,
+              "file": "main-app.js",
+              "snippet": "function updateDisplay() {"
+            },
+            {
+              "name": "updateFieldFocus",
+              "type": "Function",
+              "line": 123,
+              "file": "main-app.js",
+              "snippet": "function updateFieldFocus() {"
+            },
+            {
+              "name": "renderDongRadios",
+              "type": "Function",
+              "line": 141,
+              "file": "main-app.js",
+              "snippet": "function renderDongRadios() {"
+            },
+            {
+              "name": "clickHandler",
+              "type": "Variable/Function",
+              "line": 175,
+              "file": "main-app.js",
+              "snippet": "const clickHandler = (e) => {"
+            },
+            {
+              "name": "extractDongName",
+              "type": "Function",
+              "line": 209,
+              "file": "main-app.js",
+              "snippet": "function extractDongName(dongString) {"
+            },
+            {
+              "name": "updateQuickSelect",
+              "type": "Function",
+              "line": 215,
+              "file": "main-app.js",
+              "snippet": "function updateQuickSelect() {"
+            },
+            {
+              "name": "generateDefaultRoads",
+              "type": "Function",
+              "line": 268,
+              "file": "main-app.js",
+              "snippet": "function generateDefaultRoads(dongName) {"
+            },
+            {
+              "name": "updateRoadTypeSelect",
+              "type": "Function",
+              "line": 288,
+              "file": "main-app.js",
+              "snippet": "function updateRoadTypeSelect() {"
+            },
+            {
+              "name": "searchAddress",
+              "type": "Function",
+              "line": 323,
+              "file": "main-app.js",
+              "snippet": "function searchAddress() {"
+            },
+            {
+              "name": "registerDelivery",
+              "type": "Function",
+              "line": 423,
+              "file": "main-app.js",
+              "snippet": "function registerDelivery() {"
+            },
+            {
+              "name": "showToast",
+              "type": "Function",
+              "line": 471,
+              "file": "main-app.js",
+              "snippet": "function showToast(message) {"
+            },
+            {
+              "name": "showNationalRegionModal",
+              "type": "Function",
+              "line": 494,
+              "file": "main-app.js",
+              "snippet": "function showNationalRegionModal() {"
+            },
+            {
+              "name": "createNationalModal",
+              "type": "Function",
+              "line": 511,
+              "file": "main-app.js",
+              "snippet": "function createNationalModal() {"
+            },
+            {
+              "name": "showSidoList",
+              "type": "Function",
+              "line": 550,
+              "file": "main-app.js",
+              "snippet": "function showSidoList() {"
+            },
+            {
+              "name": "selectSido",
+              "type": "Function",
+              "line": 565,
+              "file": "main-app.js",
+              "snippet": "function selectSido(sido) {"
+            },
+            {
+              "name": "showGugunList",
+              "type": "Function",
+              "line": 571,
+              "file": "main-app.js",
+              "snippet": "function showGugunList(sido) {"
+            },
+            {
+              "name": "selectGugun",
+              "type": "Function",
+              "line": 586,
+              "file": "main-app.js",
+              "snippet": "function selectGugun(gugun) {"
+            }
+          ]
+        },
+        {
+          "name": "list-app.js",
+          "type": "File (JS)",
+          "file": "list-app.js",
+          "children": [
+            {
+              "name": "loadDeliveries",
+              "type": "Function",
+              "line": 19,
+              "file": "list-app.js",
+              "snippet": "function loadDeliveries() {"
+            },
+            {
+              "name": "renderList",
+              "type": "Function",
+              "line": 56,
+              "file": "list-app.js",
+              "snippet": "function renderList() {"
+            },
+            {
+              "name": "handleCall",
+              "type": "Function",
+              "line": 174,
+              "file": "list-app.js",
+              "snippet": "function handleCall(phone, id, e) {"
+            },
+            {
+              "name": "handlePhoto",
+              "type": "Function",
+              "line": 187,
+              "file": "list-app.js",
+              "snippet": "function handlePhoto(id, e) {"
+            },
+            {
+              "name": "updateDeliveryInfo",
+              "type": "Function",
+              "line": 224,
+              "file": "list-app.js",
+              "snippet": "function updateDeliveryInfo(id, updates) {"
+            },
+            {
+              "name": "setupEventListeners",
+              "type": "Function",
+              "line": 242,
+              "file": "list-app.js",
+              "snippet": "function setupEventListeners() {"
+            },
+            {
+              "name": "viewOnMap",
+              "type": "Function",
+              "line": 298,
+              "file": "list-app.js",
+              "snippet": "function viewOnMap(id) {"
+            },
+            {
+              "name": "deleteSelected",
+              "type": "Function",
+              "line": 304,
+              "file": "list-app.js",
+              "snippet": "function deleteSelected() {"
+            },
+            {
+              "name": "toggleUrgent",
+              "type": "Function",
+              "line": 318,
+              "file": "list-app.js",
+              "snippet": "function toggleUrgent() {"
+            },
+            {
+              "name": "carryoverSelected",
+              "type": "Function",
+              "line": 340,
+              "file": "list-app.js",
+              "snippet": "function carryoverSelected() {"
+            },
+            {
+              "name": "updateDateDisplay",
+              "type": "Function",
+              "line": 367,
+              "file": "list-app.js",
+              "snippet": "function updateDateDisplay() {"
+            },
+            {
+              "name": "assignLayer",
+              "type": "Function",
+              "line": 373,
+              "file": "list-app.js",
+              "snippet": "function assignLayer(layerNum) {"
+            }
+          ]
+        },
+        {
+          "name": "ocr-app.js",
+          "type": "File (JS)",
+          "file": "ocr-app.js",
+          "children": [
+            {
+              "name": "getDeliveryConfig",
+              "type": "Function",
+              "line": 4,
+              "file": "ocr-app.js",
+              "snippet": "function getDeliveryConfig() {"
+            },
+            {
+              "name": "recognizeAddress",
+              "type": "Function",
+              "line": 45,
+              "file": "ocr-app.js",
+              "snippet": "async function recognizeAddress(blob) {"
+            },
+            {
+              "name": "parseDeliverySheet",
+              "type": "Function",
+              "line": 66,
+              "file": "ocr-app.js",
+              "snippet": "function parseDeliverySheet(text, config) {"
+            },
+            {
+              "name": "processOcrImage",
+              "type": "Function",
+              "line": 248,
+              "file": "ocr-app.js",
+              "snippet": "async function processOcrImage(file) {"
+            },
+            {
+              "name": "setupScanFeature",
+              "type": "Function",
+              "line": 289,
+              "file": "ocr-app.js",
+              "snippet": "function setupScanFeature() {"
+            },
+            {
+              "name": "renderScannedList",
+              "type": "Function",
+              "line": 336,
+              "file": "ocr-app.js",
+              "snippet": "function renderScannedList() {"
+            },
+            {
+              "name": "addScannedItem",
+              "type": "Function",
+              "line": 382,
+              "file": "ocr-app.js",
+              "snippet": "function addScannedItem(dong, jibun) {"
+            },
+            {
+              "name": "openOcrModal",
+              "type": "Function",
+              "line": 389,
+              "file": "ocr-app.js",
+              "snippet": "function openOcrModal() { document.getElementById('ocrModal').style.display = 'flex'; }"
+            },
+            {
+              "name": "closeOcrModal",
+              "type": "Function",
+              "line": 390,
+              "file": "ocr-app.js",
+              "snippet": "function closeOcrModal() { document.getElementById('ocrModal').style.display = 'none'; }"
+            },
+            {
+              "name": "confirmRegistration",
+              "type": "Function",
+              "line": 394,
+              "file": "ocr-app.js",
+              "snippet": "async function confirmRegistration() {"
+            },
+            {
+              "name": "preprocessImage",
+              "type": "Function",
+              "line": 468,
+              "file": "ocr-app.js",
+              "snippet": "function preprocessImage(file, maxWidth) {"
+            },
+            {
+              "name": "g",
+              "type": "Variable/Function",
+              "line": 493,
+              "file": "ocr-app.js",
+              "snippet": "const g = (d[i] * 77 + d[i+1] * 150 + d[i+2] * 29) >> 8;"
+            },
+            {
+              "name": "v",
+              "type": "Variable/Function",
+              "line": 503,
+              "file": "ocr-app.js",
+              "snippet": "const v = ((d[i] - mn) * 255 / rng) | 0;"
+            }
+          ]
+        },
+        {
+          "name": "route-optimizer.js",
+          "type": "File (JS)",
+          "file": "route-optimizer.js",
+          "children": [
+            {
+              "name": "cleanup",
+              "type": "Variable/Function",
+              "line": 121,
+              "file": "route-optimizer.js",
+              "snippet": "const cleanup = () => {"
+            },
+            {
+              "name": "dLat",
+              "type": "Variable/Function",
+              "line": 208,
+              "file": "route-optimizer.js",
+              "snippet": "const dLat = (lat2 - lat1) * Math.PI / 180;"
+            },
+            {
+              "name": "dLon",
+              "type": "Variable/Function",
+              "line": 209,
+              "file": "route-optimizer.js",
+              "snippet": "const dLon = (lon2 - lon1) * Math.PI / 180;"
+            }
+          ]
+        },
+        {
+          "name": "anchor-system.js",
+          "type": "File (JS)",
+          "file": "anchor-system.js",
+          "children": [
+            {
+              "name": "toAnchorKey",
+              "type": "Function",
+              "line": 19,
+              "file": "anchor-system.js",
+              "snippet": "function toAnchorKey(dong, jibun) {"
+            },
+            {
+              "name": "saveToAddressBook",
+              "type": "Function",
+              "line": 27,
+              "file": "anchor-system.js",
+              "snippet": "function saveToAddressBook(item) {"
+            },
+            {
+              "name": "getFromAddressBook",
+              "type": "Function",
+              "line": 45,
+              "file": "anchor-system.js",
+              "snippet": "function getFromAddressBook(dong, jibun) {"
+            }
+          ]
+        },
+        {
+          "name": "national-regions.js",
+          "type": "File (JS)",
+          "file": "national-regions.js",
+          "children": [
+            {
+              "name": "getSidoList",
+              "type": "Function",
+              "line": 133,
+              "file": "national-regions.js",
+              "snippet": "function getSidoList() {"
+            },
+            {
+              "name": "getGugunList",
+              "type": "Function",
+              "line": 138,
+              "file": "national-regions.js",
+              "snippet": "function getGugunList(sido) {"
+            },
+            {
+              "name": "getDongList",
+              "type": "Function",
+              "line": 143,
+              "file": "national-regions.js",
+              "snippet": "function getDongList(sido, gugun) {"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Config",
+      "type": "Folder",
+      "children": [
+        {
+          "name": "manifest.json",
+          "type": "File",
+          "file": "manifest.json",
+          "children": []
+        },
+        {
+          "name": "service-worker.js",
+          "type": "File (JS)",
+          "file": "service-worker.js",
+          "children": []
+        },
+        {
+          "name": "package.json",
+          "type": "File",
+          "file": "package.json",
+          "children": []
+        },
+        {
+          "name": "capacitor.config.json",
+          "type": "File",
+          "file": "capacitor.config.json",
+          "children": []
+        }
+      ]
+    },
+    {
+      "name": "Tools",
+      "type": "Folder",
+      "children": [
+        {
+          "name": "fix_map.py",
+          "type": "File (Python)",
+          "file": "fix_map.py",
+          "children": []
+        },
+        {
+          "name": "convert-icon.js",
+          "type": "File (JS)",
+          "file": "convert-icon.js",
+          "children": [
+            {
+              "name": "convert",
+              "type": "Function",
+              "line": 6,
+              "file": "convert-icon.js",
+              "snippet": "async function convert() {"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Android",
+      "type": "Folder",
+      "children": [
+        {
+          "name": "android",
+          "type": "Folder",
+          "children": []
+        }
+      ]
+    }
+  ]
+}; 
+    </script>
+    <script>
+        // Start D3 Logic
+        const margin = { top: 40, right: 200, bottom: 40, left: 140 };
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+
+        const svg = d3.select("#tree").append("svg")
+            .attr("width", width).attr("height", height);
+        const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+        const zoom = d3.zoom().scaleExtent([0.1, 4])
+            .on("zoom", (event) => g.attr("transform", event.transform));
+        svg.call(zoom);
+        svg.call(zoom.transform, d3.zoomIdentity.translate(margin.left, height / 2).scale(0.85));
+
+        let i = 0;
+        const duration = 400;
+        let root;
+
+        // Initialize from external/embedded data
+        function initTree(data) {
+            root = d3.hierarchy(data, d => d.children);
+            root.x0 = height / 2;
+            root.y0 = 0;
+            if (root.children) { root.children.forEach(collapseNode); }
+            update(root);
+            countNodes();
+        }
+
+        function collapseNode(d) {
+            if (d.children) { d._children = d.children; d._children.forEach(collapseNode); d.children = null; }
+        }
+
+        function nodeColor(d) {
+            if (d._children) return "#a29bfe";
+            const t = d.data.type;
+            if (t === 'Folder') return "#6c5ce7";
+            if (t && t.startsWith('File')) return "#00b894";
+            if (t === 'Class' || t === 'Element ID') return "#e17055";
+            if (t === 'Function' || t === 'Variable/Function') return "#0984e3";
+            if (t === 'Route') return "#fdcb6e";
+            if (d.depth === 0) return "#fd79a8";
+            return "#6c5ce7";
+        }
+
+        function linkColor(d) {
+            // Safe check
+            if (!d.target || !d.target.data) return "#6c5ce744";
+            const t = d.target.data.type;
+            if (t && t.startsWith('File')) return "#00b89466";
+            if (t === 'Class') return "#e1705566";
+            return "#6c5ce744";
+        }
+
+        function nodeIcon(d) {
+            const t = d.data.type;
+            if (t === 'Folder' || d.depth === 1) return 'M-8,-6 L-2,-6 L0,-9 L8,-9 L8,6 L-8,6 Z';
+            if (t && t.startsWith('File')) return 'M-5,-8 L3,-8 L6,-5 L6,8 L-5,8 Z M3,-8 L3,-5 L6,-5';
+            if (t === 'Class' || t === 'Element ID') return 'M0,-7 L7,0 L0,7 L-7,0 Z';
+            if (t === 'Route') return 'M-6,-5 L3,-5 L3,-8 L8,0 L3,8 L3,5 L-6,5 Z';
+            return 'M-4,-7 L4,-7 L7,0 L4,7 L-4,7 L-7,0 Z';
+        }
+
+        function iconScale(d) {
+            if (d.depth === 0) return 1.3;
+            if (d.depth === 1) return 1.0;
+            return 0.8;
+        }
+
+        function countNodes() {
+            let totalNodes = 0;
+            if (root) root.each(() => totalNodes++);
+            document.getElementById('stats').textContent = `Nodes: ${totalNodes} | Click: expand | Leaf click: code | Scroll: zoom`;
+        }
+
+        function toggle(event, d) {
+            event.stopPropagation();
+            if (d.children) { d._children = d.children; d.children = null; }
+            else if (d._children) { d.children = d._children; d._children = null; }
+            else if (d.data.snippet) { showCodePanel(d.data); return; }
+            update(d);
+        }
+
+        function update(source) {
+            if (!root) return;
+            const nodeHeight = 22;
+            const treemap = d3.tree().nodeSize([nodeHeight, 200]);
+            const treeResult = treemap(root);
+            const nodes = treeResult.descendants();
+            const links = treeResult.links();
+            nodes.forEach(d => { d.y = d.depth * 220; });
+
+            const node = g.selectAll('g.node').data(nodes, d => d.id || (d.id = ++i));
+
+            const nodeEnter = node.enter().append('g')
+                .attr('class', 'node')
+                .attr("transform", d => `translate(${source.y0},${source.x0})`)
+                .on("click", toggle)
+                .on("contextmenu", (event, d) => { event.preventDefault(); if (d.data.snippet) showCodePanel(d.data); })
+                .on("mouseover", (event, d) => {
+                    const t = document.getElementById('tooltip');
+                    let info = `<strong>${d.data.name}</strong>`;
+                    if (d.data.file) info += `<br><span style="color:#00b894">${d.data.file}</span>`;
+                    if (d.data.type) info += `<br>Type: ${d.data.type}`;
+                    if (d.data.line) info += `<br>Line: ${d.data.line}`;
+                    const cc = (d.children || d._children || []).length;
+                    if (cc > 0) info += `<br>Children: ${cc}`;
+                    if (d.data.snippet) info += `<br><em style="color:#a29bfe">Click to view code</em>`;
+                    t.innerHTML = info;
+                    t.style.opacity = 0.95;
+                    t.style.left = (event.pageX + 15) + 'px';
+                    t.style.top = (event.pageY - 10) + 'px';
+                })
+                .on("mouseout", () => { document.getElementById('tooltip').style.opacity = 0; });
+
+            nodeEnter.append('rect').attr('class', 'hitarea')
+                .attr('x', -12).attr('y', -12).attr('width', 220).attr('height', 24);
+
+            nodeEnter.append('path').attr('class', 'icon')
+                .attr('d', d => nodeIcon(d))
+                .attr('transform', d => `scale(${iconScale(d)})`)
+                .style("fill", d => nodeColor(d))
+                .style("stroke", d => d3.color(nodeColor(d)).darker(0.5))
+                .style("stroke-width", "1.5px").style("opacity", 1e-6);
+
+            nodeEnter.append('text').attr('class', 'label').attr("dy", ".35em")
+                .attr("x", d => (d.children || d._children) ? -14 : 14)
+                .attr("text-anchor", d => (d.children || d._children) ? "end" : "start")
+                .text(d => { let l = d.data.name; return l.length > 40 ? l.substring(0, 37) + '...' : l; })
+                .style("fill-opacity", 1e-6);
+
+            nodeEnter.filter(d => d.data.file && !d.data.children && !d.data.type.startsWith('File'))
+                .append('text').attr('class', 'file-label')
+                .attr("dy", "1.8em").attr("x", 14).attr("text-anchor", "start")
+                .text(d => d.data.file || '').style("fill-opacity", 1e-6);
+
+            const nodeMerge = node.merge(nodeEnter);
+
+            nodeMerge.transition().duration(duration)
+                .attr("transform", d => `translate(${d.y},${d.x})`);
+
+            nodeMerge.select('path.icon').transition().duration(duration).style("opacity", 1)
+                .attr('d', d => nodeIcon(d)).attr('transform', d => `scale(${iconScale(d)})`)
+                .style("fill", d => nodeColor(d)).style("stroke", d => d3.color(nodeColor(d)).darker(0.5));
+
+            nodeMerge.select('text.label').transition().duration(duration).style("fill-opacity", 1)
+                .attr("x", d => (d.children || d._children) ? -14 : 14)
+                .attr("text-anchor", d => (d.children || d._children) ? "end" : "start");
+
+            nodeMerge.select('.file-label').transition().duration(duration).style("fill-opacity", 0.6);
+
+            const nodeExit = node.exit().transition().duration(duration)
+                .attr("transform", d => `translate(${source.y},${source.x})`).remove();
+            nodeExit.select('path.icon').style('opacity', 1e-6);
+            nodeExit.select('text').style('fill-opacity', 1e-6);
+
+            const link = g.selectAll('path.link').data(links, d => d.target.id);
+            const linkEnter = link.enter().insert('path', 'g').attr('class', 'link')
+                .attr('d', d => { const o = { x: source.x0, y: source.y0 }; return diagonal(o, o); })
+                .style("stroke", d => linkColor(d));
+            link.merge(linkEnter).transition().duration(duration)
+                .attr('d', d => diagonal(d.source, d.target)).style("stroke", d => linkColor(d));
+            link.exit().transition().duration(duration)
+                .attr('d', d => { const o = { x: source.x, y: source.y }; return diagonal(o, o); }).remove();
+
+            nodes.forEach(d => { d.x0 = d.x; d.y0 = d.y; });
+        }
+
+        function diagonal(s, d) {
+            return `M ${s.y} ${s.x} C ${(s.y + d.y) / 2} ${s.x}, ${(s.y + d.y) / 2} ${d.x}, ${d.y} ${d.x}`;
+        }
+
+        function showCodePanel(data) {
+            document.getElementById('codeName').textContent = (data.type || '') + ': ' + data.name;
+            document.getElementById('codeFile').textContent = (data.file || '') + (data.line ? ' : L' + data.line : '');
+            document.getElementById('codePanelHeader').querySelector('.close').onclick = closeCodePanel;
+            // Simple syntax highlighting support could go here in future
+            document.getElementById('codeContent').textContent = data.snippet || '(no code snippet available)';
+            document.getElementById('codePanel').classList.add('open');
+        }
+        function closeCodePanel() { document.getElementById('codePanel').classList.remove('open'); }
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCodePanel(); });
+
+        let searchTimeout;
+        function searchNodes(query) {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => _doSearch(query), 200);
+        }
+        function _doSearch(query) {
+            g.selectAll('.node path.icon').classed('search-highlight', false);
+            document.getElementById('searchCount').textContent = '';
+            if (!query || query.length < 2) return;
+            const q = query.toLowerCase();
+            let matchCount = 0;
+            function walkAll(d) {
+                const name = (d.data.name || '').toLowerCase();
+                const file = (d.data.file || '').toLowerCase();
+                // Searching snippet too might be nice
+                if (name.includes(q) || file.includes(q)) { d._searchMatch = true; matchCount++; }
+                else { d._searchMatch = false; }
+                (d.children || d._children || []).forEach(walkAll);
+            }
+            walkAll(root);
+            g.selectAll('.node').each(function (d) {
+                if (d._searchMatch) d3.select(this).select('path.icon').classed('search-highlight', true);
+            });
+            document.getElementById('searchCount').textContent = matchCount > 0 ? matchCount + ' found' : 'no match';
+
+            // If matches found, expanding to them could be a nice feature, 
+            // but let's just highlight for now to match specific request style
+        }
+
+        function expandAll() {
+            function ex(d) { if (d._children) { d.children = d._children; d._children = null; } if (d.children) d.children.forEach(ex); }
+            ex(root); update(root);
+        }
+        function collapseAll() { if (root.children) root.children.forEach(collapseNode); update(root); }
+        function resetZoom() { svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity.translate(margin.left, height / 2).scale(0.85)); }
+
+        // Fetch the JSON payload
+        // // fetch('mindmap_data.json')
+            // // .then(response => response.json())
+            // // .then(data => initTree(data))
+            initTree(treeData);
+
+    </script>
+</body>
+
+</html>
