@@ -555,10 +555,31 @@ function registerDelivery() {
     const dongWithRegion = ensureDongRegion(selectedDong);
 
     // addressBefore에 동 이름이 없으면 자동 포함 (숫자만 입력한 경우)
+    // ⚠ 회귀 수정: 이전 .includes(dongName) 부분일치 검사는 '망우'(동 접두어) 로 시작하는 입력을
+    // '망우동'이 없다고 판단해 앞에 붙였음 → '망우 178-20' → '망우동 망우 178-20' (지오코딩 실패).
+    // 새 규칙:
+    //   1) 이미 완전 동명이 포함되어 있으면 그대로.
+    //   2) 동 접두어(dongName에서 마지막 '동' 제거)로 시작하면 접두어를 완전 동명으로 승격.
+    //      예) '망우 178-20' → '망우동 178-20',  '망우로 100' 은 이미 완전 도로명이므로 규칙 3.
+    //   3) 그 외에는 앞에 동명 부여.
     const dongName = extractDongName(selectedDong);
     let finalAddressBefore = addressBefore;
-    if (dongName && dongName !== '전국코드' && addressBefore && !addressBefore.includes(dongName)) {
-        finalAddressBefore = dongName + ' ' + addressBefore;
+    if (dongName && dongName !== '전국코드' && addressBefore) {
+        const trimmed = addressBefore.trimStart();
+        // 동 어간(예: '망우동' → '망우'). '동'으로 끝나지 않는 특수 동명은 그대로 유지.
+        const stem = /동$/.test(dongName) ? dongName.slice(0, -1) : dongName;
+        if (trimmed.includes(dongName)) {
+            // 이미 완전 동명 포함 → 그대로
+            finalAddressBefore = trimmed;
+        } else if (stem && stem !== dongName &&
+                   trimmed.startsWith(stem) &&
+                   /^[\s0-9\-]/.test(trimmed.slice(stem.length) || ' ')) {
+            // 어간 + (공백|숫자|끝) 로 시작 → 어간을 완전 동명으로 승격
+            //   '망우 178-20' → '망우동 178-20' (반면 '망우로'는 stem 뒤가 '로' 라 규칙 3)
+            finalAddressBefore = dongName + trimmed.slice(stem.length);
+        } else {
+            finalAddressBefore = dongName + ' ' + trimmed;
+        }
     }
 
     // fullAddress 생성 시 지역 컨텍스트 포함 (지방 매칭 방지)
