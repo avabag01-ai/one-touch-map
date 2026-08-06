@@ -146,20 +146,38 @@ function getDongList(sido, gugun) {
 
 // 동 이름으로 시/도, 구/군 역검색 (지오코딩 시 지역 컨텍스트 확보용)
 // 예: '망우동' → { sido: '서울특별시', gugun: '중랑구' }
-function findRegionByDong(dongName) {
-    if (!dongName) return null;
-    // 개행문자 포함 시 동 이름만 추출
+// ⚠ 동음이의 동(예: '사직동' = 서울 종로구 & 부산 동래구 등)이 있을 수 있으므로
+//   모든 매칭을 수집한 뒤 preferSido(있으면 사용자 컨텍스트) → 서울 기본 우선 순으로 선택.
+//   기존 호출부는 preferSido 미전달로 계속 안전 동작(서울 우선 default).
+function findAllRegionsByDong(dongName) {
+    if (!dongName) return [];
     const pureDong = dongName.split('\n')[0].trim();
-    if (!pureDong) return null;
+    if (!pureDong) return [];
 
+    const matches = [];
     for (const sido of Object.keys(NATIONAL_REGIONS)) {
         const gugunMap = NATIONAL_REGIONS[sido];
         for (const gugun of Object.keys(gugunMap)) {
             const dongs = gugunMap[gugun];
             if (Array.isArray(dongs) && dongs.includes(pureDong)) {
-                return { sido, gugun, dong: pureDong };
+                matches.push({ sido, gugun, dong: pureDong });
             }
         }
     }
-    return null;
+    return matches;
+}
+
+function findRegionByDong(dongName, preferSido) {
+    const matches = findAllRegionsByDong(dongName);
+    if (matches.length === 0) return null;
+    if (matches.length === 1) return matches[0];
+    // 사용자 컨텍스트 시/도가 있으면 그것을 최우선
+    if (preferSido) {
+        const preferred = matches.find(m => m.sido === preferSido);
+        if (preferred) return preferred;
+    }
+    // 그 외에는 서울 우선(동음동 다수의 경우 가장 흔한 컨텍스트가 서울)
+    const seoulMatch = matches.find(m => m.sido === '서울특별시');
+    if (seoulMatch) return seoulMatch;
+    return matches[0];
 }
